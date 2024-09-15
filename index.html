@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Points de Livraison</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCXTh8YoGtv_yoJtzxjv0SPHSWiYCkHhJE&libraries=places"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #map {
+            height: 400px;
+            width: 50%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Gestion des Points de Livraison</h1>
+
+    <form id="livraisonForm">
+        <input type="hidden" id="pointId" name="id">
+        <label>Code du Point:</label>
+        <input type="text" id="code_point" name="code_point" required><br>
+
+        <label>Type de Point:</label>
+        <select id="type_point" name="type_point">
+            <option value="Locker">Locker</option>
+            <option value="Shop">Shop</option>
+        </select><br>
+
+        <label>Nom du Magasin:</label>
+        <input type="text" id="nom_magasin" name="nom_magasin" required><br>
+
+        <label>Adresse:</label>
+        <input type="text" id="adresse" name="adresse" required><br>
+
+        <label>Code Postal:</label>
+        <input type="text" id="code_postal" name="code_postal" required><br>
+
+        <label>Ville:</label>
+        <input type="text" id="ville" name="ville" required><br>
+
+        <label>Photo (StreetView):</label>
+        <input type="text" id="photo_streetview" name="photo_streetview"><br>
+
+        <label>Coordonnées GPS:</label>
+        <input type="text" id="latitude" name="latitude" placeholder="Latitude" required>
+        <input type="text" id="longitude" name="longitude" placeholder="Longitude" required><br>
+
+        <button type="submit">Enregistrer</button>
+    </form>
+
+    <div id="map"></div>
+
+    <table id="pointsTable">
+        <thead>
+            <tr>
+                <th>Code Point</th>
+                <th>Type</th>
+                <th>Nom Magasin</th>
+                <th>Adresse</th>
+                <th>Ville</th>
+                <th>Coordonnées</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        // Initialiser la carte Google Maps
+        let map;
+        let markers = [];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 48.8566, lng: 2.3522 },
+                zoom: 12
+            });
+
+            loadPoints();
+        }
+
+        // Autocomplétion avec Google Places API
+        function initAutocomplete() {
+            const addressInput = document.getElementById('adresse');
+            const autocomplete = new google.maps.places.Autocomplete(addressInput, { types: ['address'] });
+            
+            autocomplete.addListener('place_changed', function () {
+                const place = autocomplete.getPlace();
+                if (!place.geometry) return;
+
+                document.getElementById('latitude').value = place.geometry.location.lat();
+                document.getElementById('longitude').value = place.geometry.location.lng();
+
+                const addressComponents = place.address_components;
+                for (const component of addressComponents) {
+                    const types = component.types;
+                    if (types.includes('postal_code')) {
+                        document.getElementById('code_postal').value = component.long_name;
+                    }
+                    if (types.includes('locality')) {
+                        document.getElementById('ville').value = component.long_name;
+                    }
+                }
+            });
+        }
+
+        // Charger les points existants
+        function loadPoints() {
+            $.ajax({
+                url: 'load_points.php',
+                type: 'GET',
+                success: function (response) {
+                    const points = JSON.parse(response);
+                    displayPoints(points);
+                }
+            });
+        }
+
+        function displayPoints(points) {
+            const tableBody = $('#pointsTable tbody');
+            tableBody.empty();
+
+            points.forEach(point => {
+                const row = `
+                    <tr>
+                        <td>${point.code_point}</td>
+                        <td>${point.type_point}</td>
+                        <td>${point.nom_magasin}</td>
+                        <td>${point.adresse}</td>
+                        <td>${point.ville}</td>
+                        <td>${point.latitude}, ${point.longitude}</td>
+                        <td>
+                            <button onclick="editPoint(${point.id})">Modifier</button>
+                            <button onclick="deletePoint(${point.id})">Supprimer</button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.append(row);
+                addMarker(point.latitude, point.longitude, point.nom_magasin);
+            });
+        }
+
+        // Ajouter un marqueur à la carte
+        function addMarker(lat, lng, title) {
+            const marker = new google.maps.Marker({
+                position: { lat: parseFloat(lat), lng: parseFloat(lng) },
+                map: map,
+                title: title
+            });
+            markers.push(marker);
+        }
+
+        // Formulaire d'enregistrement ou modification
+        $('#livraisonForm').on('submit', function (e) {
+            e.preventDefault();
+            const formData = $(this).serialize();
+
+            $.ajax({
+                url: 'save_point.php',
+                type: 'POST',
+                data: formData,
+                success: function () {
+                    alert('Point enregistré avec succès');
+                    loadPoints();
+                }
+            });
+        });
+
+        // Modifier un point
+        function editPoint(id) {
+            $.ajax({
+                url: 'get_point.php',
+                type: 'GET',
+                data: { id: id },
+                success: function (response) {
+                    const point = JSON.parse(response);
+                    $('#pointId').val(point.id);
+                    $('#code_point').val(point.code_point);
+                    $('#type_point').val(point.type_point);
+                    $('#nom_magasin').val(point.nom_magasin);
+                    $('#adresse').val(point.adresse);
+                    $('#code_postal').val(point.code_postal);
+                    $('#ville').val(point.ville);
+                    $('#photo_streetview').val(point.photo_streetview);
+                    $('#latitude').val(point.latitude);
+                    $('#longitude').val(point.longitude);
+                }
+            });
+        }
+
+        // Supprimer un point
+        function deletePoint(id) {
+            if (confirm('Voulez-vous vraiment supprimer ce point ?')) {
+                $.ajax({
+                    url: 'delete_point.php',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function () {
+                        alert('Point supprimé avec succès');
+                        loadPoints();
+                    }
+                });
+            }
+        }
+
+        $(document).ready(function () {
+            initAutocomplete();
+            initMap();
+        });
+    </script>
+</body>
+</html>
