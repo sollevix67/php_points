@@ -1,213 +1,786 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion des Points de Livraison</title>
-    <script src="https://maps.googleapis.com/maps/api/js?key=Google_API_Key&libraries=places"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <title>LiveTrack - Points de Livraison</title>
+    
+    <!-- Dépendances -->
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.all.min.js"></script>
+    
+    <!-- Initialisation de Google Maps -->
+    <script>
+        let map;
+        let marker;
+        let panorama;
+        let autocomplete;
+        const points = new Map();
+        const markers = new Map();
+
+        function initGoogleMaps() {
+            initMap();
+            initAutocomplete();
+            loadAllPoints();
+        }
+    </script>
+    
+    <!-- Google Maps avec callback -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=places,geometry&callback=initGoogleMaps">
+    </script>
+
     <style>
+        :root {
+            --primary-color: #00ffd5;
+            --secondary-color: #6c00ff;
+            --background: #0a192f;
+            --card-bg: #112240;
+            --text-color: #ccd6f6;
+            --text-secondary: #8892b0;
+            --border-color: #233554;
+            --shadow: 0 10px 30px -10px rgba(2,12,27,0.7);
+            --radius: 8px;
+            --nav-height: 70px;
+            --transition: all 0.25s cubic-bezier(0.645,0.045,0.355,1);
+        }
+
+        [data-theme="light"] {
+            --background: #ffffff;
+            --card-bg: #f8f9fa;
+            --text-color: #333333;
+            --text-secondary: #666666;
+            --border-color: #dee2e6;
+            --shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-color);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            transition: var(--transition);
+        }
+
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: var(--nav-height);
+            background-color: rgba(10, 25, 47, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 0 25px;
+        }
+
+        .navbar .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .search-section {
+            margin-top: calc(var(--nav-height) + 50px);
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .search-header {
+            margin-bottom: 30px;
+        }
+
+        .search-header i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .search-header h1 {
+            font-size: 2.5rem;
+            color: var(--text-color);
+        }
+
+        .search-box {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 255, 213, 0.1);
+        }
+
+        .suggestions-container {
+            position: absolute;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 var(--radius) var(--radius);
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+            display: none;
+        }
+
+        .suggestion-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .suggestion-item:hover {
+            background: rgba(0, 255, 213, 0.05);
+        }
+
+        .suggestion-icon {
+            margin-right: 15px;
+            color: var(--primary-color);
+            width: 30px;
+            text-align: center;
+        }
+
+        .suggestion-content {
+            flex: 1;
+        }
+
+        .suggestion-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: var(--text-color);
+        }
+
+        .suggestion-address {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .map-container {
+            height: 500px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 30px 0;
+            box-shadow: var(--shadow);
+        }
+
         #map {
-            height: 400px;
-            width: 50%;
+            height: 100%;
+            width: 100%;
+        }
+
+        .details-section {
+            display: none;
+            margin: 30px 0;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .type-badge.locker {
+            background: rgba(0, 255, 213, 0.1);
+            color: var(--primary-color);
+        }
+
+        .type-badge.shop {
+            background: rgba(108, 0, 255, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .info-card h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .info-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: var(--text-color);
+            font-size: 1.1rem;
+        }
+
+        .street-view-card {
+            height: 300px;
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .admin-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--primary-color);
+            color: var(--background);
+            padding: 12px 24px;
+            border-radius: 30px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .admin-link:hover {
+            transform: translateY(-2px);
+        }
+
+        .custom-marker {
+            position: relative;
+            padding: 5px 10px;
+            background: var(--primary-color);
+            color: var(--background);
+            border-radius: 4px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .custom-marker::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid var(--primary-color);
+        }
+
+        .street-view-loading {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        .street-view-error {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--card-bg);
+            color: var(--text-color);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .street-view-error i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        /* Ajout des styles pour les horaires */
+        .horaires-list {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .horaires-list .jour {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+
+        .horaires-list .jour-nom {
+            font-weight: bold;
+            color: var(--primary-color);
+            min-width: 100px;
+        }
+
+        .horaires-list .horaire {
+            color: var(--text-secondary);
+            text-align: right;
         }
     </style>
 </head>
 <body>
-    <h1>Gestion des Points de Livraison</h1>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <i class="fas fa-truck-fast"></i>
+                LiveTrack
+            </div>
+            <button class="theme-toggle" title="Changer de thème">🌓</button>
+        </div>
+    </nav>
 
-    <form id="livraisonForm">
-        <input type="hidden" id="pointId" name="id">
-        <label>Code du Point:</label>
-        <input type="text" id="code_point" name="code_point" required><br>
+    <div class="container">
+        <div class="search-section">
+            <div class="search-header">
+                <i class="fas fa-map-marker-alt"></i>
+                <h1>Recherche de Points de Livraison</h1>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchAddress" class="search-input" 
+                       placeholder="Rechercher une adresse, un magasin ou un point relais...">
+                <div id="suggestions" class="suggestions-container"></div>
+            </div>
+        </div>
 
-        <label>Type de Point:</label>
-        <select id="type_point" name="type_point">
-            <option value="Locker">Locker</option>
-            <option value="Shop">Shop</option>
-        </select><br>
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
 
-        <label>Nom du Magasin:</label>
-        <input type="text" id="nom_magasin" name="nom_magasin" required><br>
+        <div id="details-section" class="details-section">
+            <div class="details-grid">
+                <div class="info-card">
+                    <div id="type-badge" class="type-badge"></div>
+                    <h2>Informations du point</h2>
+                    <div class="info-item">
+                        <div class="info-label">Nom du magasin</div>
+                        <div id="nom-magasin" class="info-value"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Adresse complète</div>
+                        <div id="adresse" class="info-value"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Code postal</div>
+                        <div id="code-postal" class="info-value"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Ville</div>
+                        <div id="ville" class="info-value"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Code point</div>
+                        <div id="code-point" class="info-value"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Horaires</div>
+                        <div id="horaires" class="info-value horaires-list"></div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h2>Vue de la rue</h2>
+                    <div id="streetView" class="street-view-card"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        <label>Adresse:</label>
-        <input type="text" id="adresse" name="adresse" required><br>
-
-        <label>Code Postal:</label>
-        <input type="text" id="code_postal" name="code_postal" required><br>
-
-        <label>Ville:</label>
-        <input type="text" id="ville" name="ville" required><br>
-
-        <label>Photo (StreetView):</label>
-        <input type="text" id="photo_streetview" name="photo_streetview"><br>
-
-        <label>Coordonnées GPS:</label>
-        <input type="text" id="latitude" name="latitude" placeholder="Latitude" required>
-        <input type="text" id="longitude" name="longitude" placeholder="Longitude" required><br>
-
-        <button type="submit">Enregistrer</button>
-    </form>
-
-    <div id="map"></div>
-
-    <table id="pointsTable">
-        <thead>
-            <tr>
-                <th>Code Point</th>
-                <th>Type</th>
-                <th>Nom Magasin</th>
-                <th>Adresse</th>
-                <th>Ville</th>
-                <th>Coordonnées</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <!-- Remplacer le lien admin par un bouton -->
+    <button onclick="showAdminLogin()" class="admin-link">
+        <i class="fas fa-cog"></i>
+        Administration
+    </button>
 
     <script>
-        // Initialiser la carte Google Maps
-        let map;
-        let markers = [];
-
+        // Initialisation de la carte
         function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 48.8566, lng: 2.3522 },
-                zoom: 12
-            });
-
-            loadPoints();
+            const strasbourg = { lat: 48.5734, lng: 7.7521 };
+            const mapOptions = {
+                center: strasbourg,
+                zoom: 12,
+                styles: [
+                    {
+                        featureType: "all",
+                        elementType: "labels.text.fill",
+                        stylers: [{ color: "#ccd6f6" }]
+                    },
+                    {
+                        featureType: "all",
+                        elementType: "labels.text.stroke",
+                        stylers: [{ color: "#0a192f" }]
+                    }
+                    // Ajoutez d'autres styles de carte si nécessaire
+                ]
+            };
+            map = new google.maps.Map(document.getElementById('map'), mapOptions);
         }
 
-        // Autocomplétion avec Google Places API
+        // Chargement des points
+        function loadAllPoints() {
+            fetch('https://www.sollevix.ovh/load_points.php')
+                .then(response => response.json())
+                .then(data => {
+                    // Debug
+                    console.log('Points reçus du serveur:', data);
+
+                    // Vider les points existants
+                    points.clear();
+                    markers.forEach(marker => marker.setMap(null));
+                    markers.clear();
+
+                    // Charger les nouveaux points
+                    data.forEach(point => {
+                        // S'assurer que le point a un code_point
+                        if (point && point.code_point) {
+                            // Convertir le code_point en majuscules pour la cohérence
+                            point.code_point = point.code_point.toUpperCase();
+                            points.set(point.code_point, point);
+                            createCustomMarker(point);
+                        }
+                    });
+
+                    // Debug
+                    console.log('Points chargés:', points.size);
+                    console.log('Points disponibles:', Array.from(points.values()));
+                })
+                .catch(error => console.error('Erreur:', error));
+        }
+
+        // Initialisation de l'autocomplétion
         function initAutocomplete() {
-            const addressInput = document.getElementById('adresse');
-            const autocomplete = new google.maps.places.Autocomplete(addressInput, { types: ['address'] });
+            const input = document.getElementById('searchAddress');
+            const suggestionsContainer = document.getElementById('suggestions');
             
-            autocomplete.addListener('place_changed', function () {
+            // Google Maps Autocomplete
+            autocomplete = new google.maps.places.Autocomplete(input, {
+                componentRestrictions: { country: 'fr' },
+                fields: ['formatted_address', 'geometry']
+            });
+
+            // Événement de sélection Google Maps
+            autocomplete.addListener('place_changed', function() {
                 const place = autocomplete.getPlace();
-                if (!place.geometry) return;
+                if (place.geometry) {
+                    const position = {
+                        lat: place.geometry.location.lat(),
+                        lng: place.geometry.location.lng()
+                    };
 
-                document.getElementById('latitude').value = place.geometry.location.lat();
-                document.getElementById('longitude').value = place.geometry.location.lng();
+                    map.setCenter(position);
+                    map.setZoom(16);
 
-                const addressComponents = place.address_components;
-                for (const component of addressComponents) {
-                    const types = component.types;
-                    if (types.includes('postal_code')) {
-                        document.getElementById('code_postal').value = component.long_name;
-                    }
-                    if (types.includes('locality')) {
-                        document.getElementById('ville').value = component.long_name;
-                    }
+                    if (marker) marker.setMap(null);
+                    marker = new google.maps.Marker({
+                        position: position,
+                        map: map,
+                        animation: google.maps.Animation.DROP
+                    });
+
+                    // Rechercher les points proches
+                    findNearbyPoints(position);
+                }
+            });
+
+            // Notre autocomplétion personnalisée
+            input.addEventListener('input', debounce(function() {
+                const value = this.value.toUpperCase().trim(); // Convertir en majuscules
+                console.log('Recherche de:', value);
+                console.log('Points disponibles:', points.size);
+
+                // Si c'est un code point (commence par FR ou 5)
+                if (value.match(/^(FR|5)/)) {
+                    console.log('Recherche de code point');
+                    const matches = Array.from(points.values()).filter(point => 
+                        point.code_point && point.code_point.startsWith(value)
+                    );
+                    
+                    console.log('Points trouvés:', matches);
+                    displayResults(matches);
+                    return;
+                }
+
+                // Pour les autres recherches
+                if (value.length >= 2) {
+                    const matches = Array.from(points.values()).filter(point => 
+                        (point.code_point && point.code_point.includes(value)) ||
+                        (point.nom_magasin && point.nom_magasin.toUpperCase().includes(value)) ||
+                        (point.adresse && point.adresse.toUpperCase().includes(value)) ||
+                        (point.code_postal && point.code_postal.includes(value)) ||
+                        (point.ville && point.ville.toUpperCase().includes(value))
+                    );
+
+                    console.log('Points trouvés:', matches);
+                    displayResults(matches);
+                } else {
+                    suggestionsContainer.style.display = 'none';
+                }
+            }, 300));
+
+            // Fermer les suggestions quand on clique ailleurs
+            document.addEventListener('click', function(e) {
+                if (!suggestionsContainer.contains(e.target) && e.target !== input) {
+                    suggestionsContainer.style.display = 'none';
                 }
             });
         }
 
-        // Charger les points existants
-        function loadPoints() {
-            $.ajax({
-                url: 'load_points.php',
-                type: 'GET',
-                success: function (response) {
-                    const points = JSON.parse(response);
-                    displayPoints(points);
-                }
-            });
-        }
-
-        function displayPoints(points) {
-            const tableBody = $('#pointsTable tbody');
-            tableBody.empty();
-
-            points.forEach(point => {
-                const row = `
-                    <tr>
-                        <td>${point.code_point}</td>
-                        <td>${point.type_point}</td>
-                        <td>${point.nom_magasin}</td>
-                        <td>${point.adresse}</td>
-                        <td>${point.ville}</td>
-                        <td>${point.latitude}, ${point.longitude}</td>
-                        <td>
-                            <button onclick="editPoint(${point.id})">Modifier</button>
-                            <button onclick="deletePoint(${point.id})">Supprimer</button>
-                        </td>
-                    </tr>
-                `;
-                tableBody.append(row);
-                addMarker(point.latitude, point.longitude, point.nom_magasin);
-            });
-        }
-
-        // Ajouter un marqueur à la carte
-        function addMarker(lat, lng, title) {
-            const marker = new google.maps.Marker({
-                position: { lat: parseFloat(lat), lng: parseFloat(lng) },
-                map: map,
-                title: title
-            });
-            markers.push(marker);
-        }
-
-        // Formulaire d'enregistrement ou modification
-        $('#livraisonForm').on('submit', function (e) {
-            e.preventDefault();
-            const formData = $(this).serialize();
-
-            $.ajax({
-                url: 'save_point.php',
-                type: 'POST',
-                data: formData,
-                success: function () {
-                    alert('Point enregistré avec succès');
-                    loadPoints();
-                }
-            });
-        });
-
-        // Modifier un point
-        function editPoint(id) {
-            $.ajax({
-                url: 'get_point.php',
-                type: 'GET',
-                data: { id: id },
-                success: function (response) {
-                    const point = JSON.parse(response);
-                    $('#pointId').val(point.id);
-                    $('#code_point').val(point.code_point);
-                    $('#type_point').val(point.type_point);
-                    $('#nom_magasin').val(point.nom_magasin);
-                    $('#adresse').val(point.adresse);
-                    $('#code_postal').val(point.code_postal);
-                    $('#ville').val(point.ville);
-                    $('#photo_streetview').val(point.photo_streetview);
-                    $('#latitude').val(point.latitude);
-                    $('#longitude').val(point.longitude);
-                }
-            });
-        }
-
-        // Supprimer un point
-        function deletePoint(id) {
-            if (confirm('Voulez-vous vraiment supprimer ce point ?')) {
-                $.ajax({
-                    url: 'delete_point.php',
-                    type: 'POST',
-                    data: { id: id },
-                    success: function () {
-                        alert('Point supprimé avec succès');
-                        loadPoints();
-                    }
-                });
+        // Nouvelle fonction pour afficher les résultats
+        function displayResults(matches) {
+            if (matches.length > 0) {
+                suggestionsContainer.style.display = 'block';
+                suggestionsContainer.innerHTML = matches.map(point => `
+                    <div class="suggestion-item fade-in" onclick="selectPoint(${JSON.stringify(point)})">
+                        <div class="suggestion-icon">
+                            <i class="fas ${point.type_point === 'Locker' ? 'fa-box' : 'fa-store'}"></i>
+                        </div>
+                        <div class="suggestion-content">
+                            <div class="suggestion-title">
+                                ${point.nom_magasin} 
+                                <span style="color: var(--text-secondary); font-size: 0.8em;">(${point.code_point})</span>
+                            </div>
+                            <div class="suggestion-address">${point.adresse}, ${point.code_postal} ${point.ville}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                suggestionsContainer.style.display = 'none';
             }
         }
 
-        $(document).ready(function () {
-            initAutocomplete();
-            initMap();
+        // Fonction pour trouver les points proches
+        function findNearbyPoints(position) {
+            const nearbyPoints = Array.from(points.values()).filter(point => {
+                const pointPos = {
+                    lat: parseFloat(point.latitude),
+                    lng: parseFloat(point.longitude)
+                };
+                return google.maps.geometry.spherical.computeDistanceBetween(
+                    new google.maps.LatLng(position),
+                    new google.maps.LatLng(pointPos)
+                ) < 2000; // 2km
+            });
+
+            if (nearbyPoints.length > 0) {
+                selectPoint(nearbyPoints[0]);
+            }
+        }
+
+        // Fonction selectPoint modifiée avec Street View corrigé et horaires
+        function selectPoint(point) {
+            const position = {
+                lat: parseFloat(point.latitude),
+                lng: parseFloat(point.longitude)
+            };
+
+            map.setCenter(position);
+            map.setZoom(16);
+
+            if (marker) marker.setMap(null);
+            marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                animation: google.maps.Animation.DROP
+            });
+
+            document.getElementById('suggestions').style.display = 'none';
+            document.getElementById('searchAddress').value = point.adresse;
+            document.getElementById('details-section').style.display = 'block';
+            
+            // Mise à jour des informations
+            const typeBadge = document.getElementById('type-badge');
+            typeBadge.textContent = point.type_point;
+            typeBadge.className = `type-badge ${point.type_point.toLowerCase()}`;
+
+            document.getElementById('nom-magasin').textContent = point.nom_magasin;
+            document.getElementById('adresse').textContent = point.adresse;
+            document.getElementById('code-postal').textContent = point.code_postal;
+            document.getElementById('ville').textContent = point.ville;
+            document.getElementById('code-point').textContent = point.code_point;
+
+            // Affichage des horaires
+            const horairesList = document.getElementById('horaires');
+            if (point.horaires) {
+                const horaires = point.horaires.split('\n').filter(h => h.trim());
+                horairesList.innerHTML = horaires.map(horaire => {
+                    const [jour, heures] = horaire.split(':');
+                    return `
+                        <div class="jour">
+                            <span class="jour-nom">${jour}</span>
+                            <span class="horaire">${heures || 'Fermé'}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                horairesList.innerHTML = '<div class="horaire">Horaires non disponibles</div>';
+            }
+
+            // Street View (version qui fonctionnait)
+            panorama = new google.maps.StreetViewPanorama(
+                document.getElementById('streetView'),
+                {
+                    position: position,
+                    pov: { heading: 34, pitch: 10 },
+                    zoom: 1
+                }
+            );
+        }
+
+        // Gestion du thème
+        document.querySelector('.theme-toggle').addEventListener('click', function() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
         });
+
+        // Appliquer le thème sauvegardé
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // Utilitaire debounce
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function createCustomMarker(point) {
+            const position = {
+                lat: parseFloat(point.latitude),
+                lng: parseFloat(point.longitude)
+            };
+
+            // Supprimer l'ancien marqueur s'il existe
+            if (markers.has(point.code_point)) {
+                markers.get(point.code_point).setMap(null);
+            }
+
+            // Créer le nouveau marqueur
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: point.nom_magasin,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: point.type_point === 'Locker' ? '#00ffd5' : '#6c00ff',
+                    fillOpacity: 0.9,
+                    strokeWeight: 2,
+                    strokeColor: '#ffffff',
+                    scale: 10
+                },
+                animation: google.maps.Animation.DROP
+            });
+
+            // Ajouter un événement click
+            marker.addListener('click', () => selectPoint(point));
+
+            // Sauvegarder le marqueur
+            markers.set(point.code_point, marker);
+            return marker;
+        }
+
+        // Ajouter la fonction de connexion admin
+        function showAdminLogin() {
+            Swal.fire({
+                title: 'Connexion Administration',
+                html: `
+                    <input type="text" id="username" class="swal2-input" placeholder="Utilisateur">
+                    <input type="password" id="password" class="swal2-input" placeholder="Mot de passe">
+                `,
+                confirmButtonText: 'Se connecter',
+                showCancelButton: true,
+                cancelButtonText: 'Annuler',
+                preConfirm: () => {
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    if (username === 'Admin' && password === 'Solle2025') {
+                        return true;
+                    }
+                    Swal.showValidationMessage('Identifiants incorrects');
+                    return false;
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    sessionStorage.setItem('adminLoggedIn', 'true');
+                    window.location.href = 'admin.html';
+                }
+            });
+        }
     </script>
 </body>
 </html>
