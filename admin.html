@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveTrack Admin - Gestion des Points</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.all.min.js"></script>
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=places,geometry&callback=initAutocomplete">
+    </script>
+    <style>
+        :root {
+            --primary-color: #00ffd5;
+            --secondary-color: #6c00ff;
+            --success-color: #00C851;
+            --danger-color: #ff4444;
+            --warning-color: #ffbb33;
+            --background: #0a192f;
+            --card-bg: #112240;
+            --text-color: #ccd6f6;
+            --text-secondary: #8892b0;
+            --border-color: #233554;
+            --shadow: 0 10px 30px -10px rgba(2,12,27,0.7);
+            --radius: 8px;
+            --transition: all 0.25s cubic-bezier(0.645,0.045,0.355,1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--text-color);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .admin-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--primary-color);
+        }
+
+        .admin-title i {
+            font-size: 2rem;
+        }
+
+        .admin-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+            height: calc(100vh - 140px);
+        }
+
+        .points-list {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+        }
+
+        .point-item {
+            padding: 15px;
+            border-radius: var(--radius);
+            background: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
+        }
+
+        .point-item:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .point-item.active {
+            border-color: var(--primary-color);
+            background: rgba(0, 255, 213, 0.1);
+        }
+
+        .point-item-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .point-item-type {
+            font-size: 0.8em;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: var(--primary-color);
+            color: var(--background);
+        }
+
+        .point-item-address {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        .edit-section {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .edit-form {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            background: var(--background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            color: var(--text-color);
+            font-size: 1em;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary { background: var(--primary-color); color: var(--background); }
+        .btn-danger { background: var(--danger-color); color: white; }
+        .btn-warning { background: var(--warning-color); color: var(--background); }
+        .btn-success { background: var(--success-color); color: white; }
+
+        .info-card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-top: 20px;
+        }
+
+        .info-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .type-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: var(--primary-color);
+            color: var(--background);
+        }
+
+        .horaires-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .jour {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .jour-nom {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: var(--radius);
+            color: white;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .pac-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 var(--radius) var(--radius);
+            box-shadow: var(--shadow);
+            margin-top: 2px;
+            z-index: 1000;
+        }
+
+        .pac-item {
+            padding: 8px 12px;
+            color: var(--text-color);
+            font-family: inherit;
+            border-color: var(--border-color);
+        }
+
+        .pac-item:hover {
+            background: rgba(0, 255, 213, 0.05);
+        }
+
+        .pac-item-query {
+            color: var(--text-color);
+        }
+
+        .pac-matched {
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <div class="admin-title">
+            <i class="fas fa-cog"></i>
+            <h1>Administration des Points de Livraison</h1>
+        </div>
+        <div class="admin-actions">
+            <button class="btn btn-warning" onclick="window.location.href='index.html'">
+                <i class="fas fa-arrow-left"></i>
+                Retour
+            </button>
+            <button class="btn btn-success" onclick="showAddForm()">
+                <i class="fas fa-plus"></i>
+                Nouveau point
+            </button>
+        </div>
+    </div>
+
+    <div class="admin-grid">
+        <div class="points-list">
+            <div id="pointsList"></div>
+        </div>
+
+        <div class="edit-section">
+            <div class="edit-form">
+                <form id="pointForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Type de point</label>
+                            <select id="type_point" name="type_point" required>
+                                <option value="Locker">Locker</option>
+                                <option value="Shop">Shop</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Nom du magasin</label>
+                            <input type="text" id="nom_magasin" name="nom_magasin" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Adresse</label>
+                            <input type="text" id="adresse" name="adresse" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Code postal</label>
+                            <input type="text" id="code_postal" name="code_postal" required pattern="[0-9]{5}">
+                        </div>
+                        <div class="form-group">
+                            <label>Ville</label>
+                            <input type="text" id="ville" name="ville" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Latitude</label>
+                            <input type="number" id="latitude" name="latitude" required step="any">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude</label>
+                            <input type="number" id="longitude" name="longitude" required step="any">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Horaires (format: Jour: 8h00-12h00 & 14h00-18h00)</label>
+                            <textarea id="horaires" name="horaires" rows="7" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Code point</label>
+                            <input type="text" id="code_point" name="code_point" required>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            Enregistrer
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="deletePoint()">
+                            <i class="fas fa-trash"></i>
+                            Supprimer
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="resetForm()">
+                            <i class="fas fa-undo"></i>
+                            Réinitialiser
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="details-section" class="info-card" style="display: none;">
+                <div class="info-header">
+                    <span id="type-badge" class="type-badge">Type</span>
+                    <h2 id="nom-magasin">Nom du magasin</h2>
+                </div>
+                <div class="info-content">
+                    <p><i class="fas fa-map-marker-alt"></i> <span id="adresse"></span></p>
+                    <p><i class="fas fa-city"></i> <span id="code-postal"></span> <span id="ville"></span></p>
+                    <p><i class="fas fa-fingerprint"></i> <span id="code-point"></span></p>
+                </div>
+                <div class="horaires-section">
+                    <h3><i class="fas fa-clock"></i> Horaires d'ouverture</h3>
+                    <div id="horaires" class="horaires-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script>
+        let currentPoint = null;
+        let autocomplete;
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = type === 'success' ? 'var(--success-color)' : 'var(--danger-color)';
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 3000);
+        }
+
+        async function loadPoints() {
+            try {
+                showLoading();
+                const response = await fetch('get_points.php');
+                const points = await response.json();
+                
+                const list = document.getElementById('pointsList');
+                list.innerHTML = points.map(point => `
+                    <div class="point-item ${currentPoint?.code_point === point.code_point ? 'active' : ''}" 
+                         onclick="editPoint('${point.code_point}')">
+                        <div class="point-item-header">
+                            <i class="fas ${point.type_point === 'Locker' ? 'fa-box' : 'fa-store'}"></i>
+                            <span class="point-item-type">${point.type_point}</span>
+                            <span>${point.nom_magasin}</span>
+                        </div>
+                        <div class="point-item-address">
+                            ${point.adresse}, ${point.code_postal} ${point.ville}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Erreur:', error);
+                showToast(error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function editPoint(code_point) {
+            try {
+                showLoading();
+                const response = await fetch(`get_point.php?code_point=${code_point}`);
+                const point = await response.json();
+
+                currentPoint = point;
+                
+                // Remplir le formulaire
+                Object.keys(point).forEach(key => {
+                    const input = document.getElementById(key);
+                    if (input) {
+                        input.value = point[key] || '';
+                        if (input.tagName === 'SELECT') {
+                            input.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+
+                // Mettre à jour l'interface
+                document.querySelectorAll('.point-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const selectedItem = document.querySelector(`.point-item[onclick="editPoint('${code_point}')"]`);
+                if (selectedItem) {
+                    selectedItem.classList.add('active');
+                    selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+
+                // Afficher les détails
+                displayPointDetails(point);
+            } catch (error) {
+                console.error('Erreur:', error);
+                showToast(error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        document.getElementById('pointForm').onsubmit = async function(e) {
+            e.preventDefault();
+            try {
+                showLoading();
+                const formData = new FormData(this);
+                
+                const response = await fetch('save_point.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                showToast('Point sauvegardé avec succès');
+                await loadPoints();
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                showToast(error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        };
+
+        async function deletePoint() {
+            const code_point = document.getElementById('code_point').value;
+            if (!code_point) return;
+
+            try {
+                const result = await Swal.fire({
+                    title: 'Êtes-vous sûr ?',
+                    text: "Cette action est irréversible !",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: 'var(--danger-color)',
+                    cancelButtonColor: 'var(--border-color)',
+                    confirmButtonText: 'Oui, supprimer',
+                    cancelButtonText: 'Annuler'
+                });
+
+                if (result.isConfirmed) {
+                    showLoading();
+                    const response = await fetch(`delete_point.php?code_point=${code_point}`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    showToast('Point supprimé avec succès');
+                    resetForm();
+                    await loadPoints();
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                showToast(error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function showAddForm() {
+            currentPoint = null;
+            document.getElementById('pointForm').reset();
+            document.getElementById('details-section').style.display = 'none';
+        }
+
+        function resetForm() {
+            currentPoint = null;
+            document.getElementById('pointForm').reset();
+            document.getElementById('code_point').value = '';
+            document.querySelectorAll('.point-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.getElementById('details-section').style.display = 'none';
+        }
+
+        function displayPointDetails(point) {
+            const detailsSection = document.getElementById('details-section');
+            
+            document.getElementById('type-badge').textContent = point.type_point;
+            document.getElementById('nom-magasin').textContent = point.nom_magasin;
+            document.getElementById('adresse').textContent = point.adresse;
+            document.getElementById('code-postal').textContent = point.code_postal;
+            document.getElementById('ville').textContent = point.ville;
+            document.getElementById('code-point').textContent = point.code_point;
+
+            const horairesList = document.getElementById('horaires');
+            if (point.horaires) {
+                const horaires = point.horaires.split('\n').filter(h => h.trim());
+                horairesList.innerHTML = horaires.map(horaire => {
+                    const [jour, heures] = horaire.split(':');
+                    return `
+                        <div class="jour">
+                            <span class="jour-nom">${jour}</span>
+                            <span class="horaire">${heures || 'Fermé'}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                horairesList.innerHTML = '<div class="horaire">Horaires non disponibles</div>';
+            }
+
+            detailsSection.style.display = 'block';
+        }
+
+        function initAutocomplete() {
+            const input = document.getElementById('adresse');
+            const options = {
+                componentRestrictions: { country: 'fr' },
+                fields: ['address_components', 'geometry', 'formatted_address'],
+                types: ['address']
+            };
+
+            autocomplete = new google.maps.places.Autocomplete(input, options);
+            autocomplete.addListener('place_changed', fillInAddress);
+        }
+
+        function fillInAddress() {
+            const place = autocomplete.getPlace();
+            if (!place.geometry) {
+                return;
+            }
+
+            // Extraire les composants de l'adresse
+            let streetNumber = '';
+            let route = '';
+            let postalCode = '';
+            let city = '';
+            
+            for (const component of place.address_components) {
+                const type = component.types[0];
+                switch(type) {
+                    case 'street_number':
+                        streetNumber = component.long_name;
+                        break;
+                    case 'route':
+                        route = component.long_name;
+                        break;
+                    case 'postal_code':
+                        postalCode = component.long_name;
+                        break;
+                    case 'locality':
+                        city = component.long_name;
+                        break;
+                }
+            }
+
+            // Remplir uniquement le numéro et la rue dans le champ adresse
+            document.getElementById('adresse').value = `${streetNumber} ${route}`.trim();
+            
+            // Remplir les autres champs séparément
+            document.getElementById('code_postal').value = postalCode;
+            document.getElementById('ville').value = city;
+
+            // Remplir les coordonnées
+            document.getElementById('latitude').value = place.geometry.location.lat();
+            document.getElementById('longitude').value = place.geometry.location.lng();
+        }
+
+        // Charger les points au démarrage
+        loadPoints();
+        initAutocomplete();
+    </script>
+</body>
+</html> 
