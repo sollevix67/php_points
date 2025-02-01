@@ -21,63 +21,80 @@
         const points = new Map();
         const markers = new Map();
 
+        // Fonction pour charger les points
+        async function loadAllPoints() {
+            try {
+                const response = await fetch('https://www.sollevix.ovh/load_points.php');
+                const data = await response.json();
+                
+                // Vider la Map existante
+                points.clear();
+                
+                // Ajouter les nouveaux points
+                data.forEach(point => {
+                    points.set(point.code_point, point);
+                });
+                
+                console.log('Points chargés:', points.size);
+            } catch (error) {
+                console.error('Erreur lors du chargement des points:', error);
+            }
+        }
+
+        // Initialisation de la carte
+        function initMap() {
+            const strasbourg = { lat: 48.5734, lng: 7.7521 };
+            const mapOptions = {
+                center: strasbourg,
+                zoom: 12,
+                styles: [
+                    {
+                        featureType: "all",
+                        elementType: "labels.text.fill",
+                        stylers: [{ color: "#ccd6f6" }]
+                    },
+                    {
+                        featureType: "all",
+                        elementType: "labels.text.stroke",
+                        stylers: [{ color: "#0a192f" }]
+                    }
+                ]
+            };
+            
+            const mapElement = document.getElementById('map');
+            if (!mapElement) {
+                console.error("L'élément #map n'a pas été trouvé dans le DOM");
+                return;
+            }
+            
+            map = new google.maps.Map(mapElement, mapOptions);
+        }
+
+        // Définir initGoogleMaps globalement
+        window.initGoogleMaps = function() {
+            console.log('Initialisation de Google Maps...');
+            initMap();
+            loadAllPoints();
+        };
+
         // Attendre que le DOM soit chargé
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialisation de la carte
-            function initMap() {
-                const strasbourg = { lat: 48.5734, lng: 7.7521 };
-                const mapOptions = {
-                    center: strasbourg,
-                    zoom: 12,
-                    styles: [
-                        {
-                            featureType: "all",
-                            elementType: "labels.text.fill",
-                            stylers: [{ color: "#ccd6f6" }]
-                        },
-                        {
-                            featureType: "all",
-                            elementType: "labels.text.stroke",
-                            stylers: [{ color: "#0a192f" }]
-                        }
-                    ]
-                };
-                
-                const mapElement = document.getElementById('map');
-                if (!mapElement) {
-                    console.error("L'élément #map n'a pas été trouvé dans le DOM");
-                    return;
-                }
-                
-                map = new google.maps.Map(mapElement, mapOptions);
-            }
-
-            // Fonction pour charger les points
-            async function loadAllPoints() {
-                try {
-                    const response = await fetch('https://www.sollevix.ovh/load_points.php');
-                    const data = await response.json();
-                    
-                    // Vider la Map existante
-                    points.clear();
-                    
-                    // Ajouter les nouveaux points
-                    data.forEach(point => {
-                        points.set(point.code_point, point);
-                    });
-                    
-                    console.log('Points chargés:', points.size);
-                } catch (error) {
-                    console.error('Erreur lors du chargement des points:', error);
-                }
-            }
-
             // Initialiser la recherche personnalisée
             const searchInput = document.getElementById('searchAddress');
             const suggestionsContainer = document.getElementById('suggestions');
             
-            searchInput.addEventListener('input', debounce(function() {
-                const value = this.value.toUpperCase().trim();
+            searchInput.addEventListener('input', debounce(async function() {
+                const value = this.value?.toUpperCase().trim() || '';
+                if (!value) {
+                    suggestionsContainer.style.display = 'none';
+                    return;
+                }
+
+                // Attendre que les points soient chargés si ce n'est pas déjà fait
+                if (points.size === 0) {
+                    await loadAllPoints();
+                }
+
                 console.log('Recherche de:', value);
                 console.log('Points disponibles:', points.size);
 
@@ -109,11 +126,6 @@
                     suggestionsContainer.style.display = 'none';
                 }
             }, 300));
-
-            window.initGoogleMaps = function() {
-                initMap();
-                loadAllPoints();
-            };
         });
     </script>
     
