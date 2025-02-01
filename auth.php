@@ -7,6 +7,8 @@ require_once 'config.php';
 
 class Auth {
     private $db;
+    private $maxLoginAttempts = 5;
+    private $lockoutTime = 900; // 15 minutes
     
     public function __construct(PDO $db) {
         $this->db = $db;
@@ -57,6 +59,10 @@ class Auth {
     public function logout() {
         session_destroy();
         return ['success' => true];
+    }
+
+    public function checkLoginAttempts($username) {
+        // Vérifier les tentatives de connexion
     }
 }
 

@@ -483,35 +483,27 @@
             map = new google.maps.Map(document.getElementById('map'), mapOptions);
         }
 
-        // Chargement des points
+        // Ajouter une mise en cache des points
+        const pointsCache = new Map();
+
         function loadAllPoints() {
-            fetch('https://www.sollevix.ovh/load_points.php')
+            const cacheKey = 'points_cache';
+            const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+            
+            const cachedData = pointsCache.get(cacheKey);
+            if (cachedData && (Date.now() - cachedData.timestamp) < cacheExpiry) {
+                return Promise.resolve(cachedData.data);
+            }
+            
+            return fetch('https://www.sollevix.ovh/load_points.php')
                 .then(response => response.json())
                 .then(data => {
-                    // Debug
-                    console.log('Points reçus du serveur:', data);
-
-                    // Vider les points existants
-                    points.clear();
-                    markers.forEach(marker => marker.setMap(null));
-                    markers.clear();
-
-                    // Charger les nouveaux points
-                    data.forEach(point => {
-                        // S'assurer que le point a un code_point
-                        if (point && point.code_point) {
-                            // Convertir le code_point en majuscules pour la cohérence
-                            point.code_point = point.code_point.toUpperCase();
-                            points.set(point.code_point, point);
-                            createCustomMarker(point);
-                        }
+                    pointsCache.set(cacheKey, {
+                        data: data,
+                        timestamp: Date.now()
                     });
-
-                    // Debug
-                    console.log('Points chargés:', points.size);
-                    console.log('Points disponibles:', Array.from(points.values()));
-                })
-                .catch(error => console.error('Erreur:', error));
+                    return data;
+                });
         }
 
         // Initialisation de l'autocomplétion

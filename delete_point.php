@@ -3,6 +3,13 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
 require_once 'config.php';
+require_once 'auth.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Méthode non autorisée']);
+    exit;
+}
 
 /**
  * Classe de gestion des points de livraison
@@ -106,12 +113,17 @@ try {
         
         $db->commit();
         
-        Logger::log('info', 'Point supprimé', ['code_point' => $code_point]);
+        Logger::log('info', 'Point supprimé', [
+            'code_point' => $code_point,
+            'user_id' => $_SESSION['user_id'] ?? null,
+            'ip' => $_SERVER['REMOTE_ADDR']
+        ]);
         
         echo json_encode([
             'success' => true, 
             'message' => 'Point supprimé avec succès'
         ]);
+        http_response_code(200);
         
     } catch (Exception $e) {
         $db->rollBack();
