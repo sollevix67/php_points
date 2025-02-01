@@ -4,15 +4,19 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-try {
-    // Définir la constante DEBUG si elle n'existe pas
-    if (!defined('DEBUG')) {
-        define('DEBUG', false);
-    }
+// Définir la constante DEBUG
+define('DEBUG', true);
 
-    // Utiliser config.php pour la connexion
-    require_once 'config.php';
-    $config = require 'config.php';
+try {
+    // Configuration directe de la base de données
+    $config = [
+        'db' => [
+            'host' => '192.168.1.61',
+            'name' => 'livraison_db',
+            'user' => 'vinted',
+            'pass' => 's24EJIlOje'
+        ]
+    ];
 
     // Vérification des paramètres de configuration
     if (!isset($config['db']) || 
@@ -25,8 +29,9 @@ try {
 
     // Création de la connexion PDO avec gestion des erreurs
     try {
+        $dsn = "mysql:host={$config['db']['host']};dbname={$config['db']['name']};charset=utf8mb4";
         $db = new PDO(
-            "mysql:host={$config['db']['host']};dbname={$config['db']['name']};charset=utf8mb4", 
+            $dsn, 
             $config['db']['user'], 
             $config['db']['pass'],
             [
@@ -37,7 +42,7 @@ try {
         );
     } catch (PDOException $e) {
         error_log("Erreur de connexion PDO: " . $e->getMessage());
-        throw new Exception('Impossible de se connecter à la base de données');
+        throw new Exception('Impossible de se connecter à la base de données: ' . $e->getMessage());
     }
     
     // Requête pour récupérer les points

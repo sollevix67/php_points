@@ -27,17 +27,98 @@
                 const response = await fetch('https://www.sollevix.ovh/load_points.php');
                 const data = await response.json();
                 
+                // Vérifier si nous avons reçu une erreur
+                if (data.error) {
+                    console.error('Erreur serveur:', data.message);
+                    return;
+                }
+
+                // Vérifier que data est un tableau
+                if (!Array.isArray(data)) {
+                    console.error('Format de données invalide:', data);
+                    return;
+                }
+                
                 // Vider la Map existante
                 points.clear();
                 
                 // Ajouter les nouveaux points
                 data.forEach(point => {
-                    points.set(point.code_point, point);
+                    if (point && point.code_point) {
+                        points.set(point.code_point, point);
+                    }
                 });
                 
                 console.log('Points chargés:', points.size);
+
+                // Afficher tous les points sur la carte
+                data.forEach(point => {
+                    if (point && point.latitude && point.longitude) {
+                        createMarker(point);
+                    }
+                });
             } catch (error) {
                 console.error('Erreur lors du chargement des points:', error);
+            }
+        }
+
+        // Fonction pour créer un marqueur
+        function createMarker(point) {
+            const position = {
+                lat: parseFloat(point.latitude),
+                lng: parseFloat(point.longitude)
+            };
+
+            // Supprimer l'ancien marqueur s'il existe
+            if (markers.has(point.code_point)) {
+                markers.get(point.code_point).setMap(null);
+            }
+
+            // Créer le nouveau marqueur
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: point.nom_magasin,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: point.type_point === 'Locker' ? '#00ffd5' : '#6c00ff',
+                    fillOpacity: 0.9,
+                    strokeWeight: 2,
+                    strokeColor: '#ffffff',
+                    scale: 10
+                }
+            });
+
+            // Ajouter un événement click
+            marker.addListener('click', () => selectPoint(point));
+
+            // Sauvegarder le marqueur
+            markers.set(point.code_point, marker);
+            return marker;
+        }
+
+        // Fonction pour afficher les résultats de recherche
+        function displayResults(matches) {
+            const suggestionsContainer = document.getElementById('suggestions');
+            
+            if (matches && matches.length > 0) {
+                suggestionsContainer.style.display = 'block';
+                suggestionsContainer.innerHTML = matches.map(point => `
+                    <div class="suggestion-item fade-in" onclick="selectPoint(${JSON.stringify(point)})">
+                        <div class="suggestion-icon">
+                            <i class="fas ${point.type_point === 'Locker' ? 'fa-box' : 'fa-store'}"></i>
+                        </div>
+                        <div class="suggestion-content">
+                            <div class="suggestion-title">
+                                ${point.nom_magasin} 
+                                <span style="color: var(--text-secondary); font-size: 0.8em;">(${point.code_point})</span>
+                            </div>
+                            <div class="suggestion-address">${point.adresse}, ${point.code_postal} ${point.ville}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                suggestionsContainer.style.display = 'none';
             }
         }
 
