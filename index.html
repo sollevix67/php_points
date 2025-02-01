@@ -29,7 +29,7 @@
     
     <!-- Google Maps avec callback -->
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=places,geometry&callback=initGoogleMaps">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=geometry&callback=initGoogleMaps">
     </script>
 
     <style>
@@ -518,34 +518,34 @@
             const suggestionsContainer = document.getElementById('suggestions');
             
             // Google Maps Autocomplete
-            autocomplete = new google.maps.places.Autocomplete(input, {
-                componentRestrictions: { country: 'fr' },
-                fields: ['formatted_address', 'geometry']
-            });
+            // autocomplete = new google.maps.places.Autocomplete(input, {
+            //     componentRestrictions: { country: 'fr' },
+            //     fields: ['formatted_address', 'geometry']
+            // });
 
             // Événement de sélection Google Maps
-            autocomplete.addListener('place_changed', function() {
-                const place = autocomplete.getPlace();
-                if (place.geometry) {
-                    const position = {
-                        lat: place.geometry.location.lat(),
-                        lng: place.geometry.location.lng()
-                    };
+            // autocomplete.addListener('place_changed', function() {
+            //     const place = autocomplete.getPlace();
+            //     if (place.geometry) {
+            //         const position = {
+            //             lat: place.geometry.location.lat(),
+            //             lng: place.geometry.location.lng()
+            //         };
 
-                    map.setCenter(position);
-                    map.setZoom(16);
+            //         map.setCenter(position);
+            //         map.setZoom(16);
 
-                    if (marker) marker.setMap(null);
-                    marker = new google.maps.Marker({
-                        position: position,
-                        map: map,
-                        animation: google.maps.Animation.DROP
-                    });
+            //         if (marker) marker.setMap(null);
+            //         marker = new google.maps.Marker({
+            //             position: position,
+            //             map: map,
+            //             animation: google.maps.Animation.DROP
+            //         });
 
-                    // Rechercher les points proches
-                    findNearbyPoints(position);
-                }
-            });
+            //         // Rechercher les points proches
+            //         findNearbyPoints(position);
+            //     }
+            // });
 
             // Notre autocomplétion personnalisée
             input.addEventListener('input', debounce(function() {
