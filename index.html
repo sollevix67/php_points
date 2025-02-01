@@ -321,7 +321,6 @@
             map.panTo(position);
             map.setZoom(16);
 
-            // Faire défiler jusqu'aux détails
             details.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -383,7 +382,7 @@
                 displaySuggestions(matches);
             } else {
                 document.getElementById('suggestions').style.display = 'none';
-                loadPoints(); // Recharger tous les points si la recherche est vide
+                loadPoints();
             }
         });
 
@@ -393,7 +392,6 @@
             }
         });
 
-        // Tri des colonnes
         document.querySelectorAll('.points-table th').forEach(header => {
             header.addEventListener('click', function() {
                 const key = this.dataset.sort;
