@@ -92,6 +92,42 @@
             border-radius: var(--radius);
             margin-top: 20px;
             display: none;
+            box-shadow: var(--shadow);
+        }
+
+        .point-details h2 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .point-details p {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+
+        .point-details .horaires {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: var(--radius);
+            margin-top: 15px;
+        }
+
+        .point-details .status {
+            margin-top: 15px;
+        }
+
+        .close-details {
+            float: right;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 20px;
+            transition: var(--transition);
+        }
+
+        .close-details:hover {
+            color: var(--primary-color);
         }
 
         .points-list {
@@ -253,13 +289,28 @@
             const details = document.getElementById('pointDetails');
             details.style.display = 'block';
             details.innerHTML = `
+                <div class="close-details" onclick="closeDetails()">
+                    <i class="fas fa-times"></i>
+                </div>
                 <h2>${point.nom_magasin}</h2>
-                <p><strong>Type:</strong> ${point.type_point}</p>
-                <p><strong>Adresse:</strong> ${point.adresse}</p>
-                <p><strong>Code postal:</strong> ${point.code_postal}</p>
-                <p><strong>Ville:</strong> ${point.ville}</p>
                 <p><strong>Code point:</strong> ${point.code_point}</p>
-                ${point.horaires ? `<p><strong>Horaires:</strong><br>${point.horaires.replace(/\n/g, '<br>')}</p>` : ''}
+                <p><strong>Type:</strong> ${point.type_point}</p>
+                <p><strong>Adresse complète:</strong><br>
+                    ${point.adresse}<br>
+                    ${point.code_postal} ${point.ville}
+                </p>
+                <div class="status">
+                    <strong>Statut:</strong> 
+                    <span class="status-badge ${point.actif ? 'status-active' : 'status-inactive'}">
+                        ${point.actif ? 'Actif' : 'Inactif'}
+                    </span>
+                </div>
+                ${point.horaires ? `
+                    <div class="horaires">
+                        <strong>Horaires d'ouverture:</strong><br>
+                        ${point.horaires.replace(/\n/g, '<br>')}
+                    </div>
+                ` : ''}
             `;
 
             const position = {
@@ -269,12 +320,19 @@
             
             map.panTo(position);
             map.setZoom(16);
+
+            // Faire défiler jusqu'aux détails
+            details.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function closeDetails() {
+            document.getElementById('pointDetails').style.display = 'none';
         }
 
         function updatePointsList(pointsData) {
             const tbody = document.getElementById('pointsList');
             tbody.innerHTML = pointsData.map(point => `
-                <tr onclick="showPointDetails(${JSON.stringify(point)})">
+                <tr onclick="showPointDetails(${JSON.stringify(point)})" style="cursor: pointer;">
                     <td>${point.code_point}</td>
                     <td>${point.nom_magasin}</td>
                     <td>
