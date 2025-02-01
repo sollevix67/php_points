@@ -503,14 +503,39 @@
             }
         }
 
+        // Fonction pour récupérer le token CSRF
+        async function getCsrfToken() {
+            try {
+                const response = await fetch('get_csrf_token.php');
+                const data = await response.json();
+                return data.token;
+            } catch (error) {
+                console.error('Erreur lors de la récupération du token CSRF:', error);
+                throw error;
+            }
+        }
+
+        // Fonction pour ajouter le token CSRF aux headers
+        async function addCsrfHeader(headers = {}) {
+            const token = await getCsrfToken();
+            return {
+                ...headers,
+                'X-CSRF-Token': token
+            };
+        }
+
+        // Modification des fonctions existantes pour inclure le token CSRF
         document.getElementById('pointForm').onsubmit = async function(e) {
             e.preventDefault();
             try {
                 showLoading();
                 const formData = new FormData(this);
                 
+                const headers = await addCsrfHeader();
+                
                 const response = await fetch('save_point.php', {
                     method: 'POST',
+                    headers: headers,
                     body: formData
                 });
                 
@@ -549,7 +574,12 @@
 
                 if (result.isConfirmed) {
                     showLoading();
-                    const response = await fetch(`delete_point.php?code_point=${code_point}`);
+                    const headers = await addCsrfHeader();
+                    
+                    const response = await fetch(`delete_point.php?code_point=${code_point}`, {
+                        method: 'DELETE',
+                        headers: headers
+                    });
                     const data = await response.json();
                     
                     if (data.error) {
@@ -670,6 +700,83 @@
         // Charger les points au démarrage
         loadPoints();
         initAutocomplete();
+
+        // Fonction de connexion admin modifiée
+        async function showAdminLogin() {
+            try {
+                const result = await Swal.fire({
+                    title: 'Connexion Administration',
+                    html: `
+                        <input type="text" id="username" class="swal2-input" placeholder="Utilisateur">
+                        <input type="password" id="password" class="swal2-input" placeholder="Mot de passe">
+                    `,
+                    confirmButtonText: 'Se connecter',
+                    showCancelButton: true,
+                    cancelButtonText: 'Annuler',
+                    preConfirm: async () => {
+                        const username = document.getElementById('username').value;
+                        const password = document.getElementById('password').value;
+                        
+                        const response = await fetch('auth.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'login',
+                                username: username,
+                                password: password
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (!data.success) {
+                            Swal.showValidationMessage(data.message);
+                            return false;
+                        }
+                        
+                        return data;
+                    }
+                });
+
+                if (result.isConfirmed) {
+                    // Stocker le token en sessionStorage
+                    sessionStorage.setItem('authToken', result.value.token);
+                    window.location.href = 'admin.html';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                Swal.fire('Erreur', 'Une erreur est survenue', 'error');
+            }
+        }
+
+        // Vérifier l'authentification au chargement de la page admin
+        async function checkAuth() {
+            try {
+                const response = await fetch('auth.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'check'
+                    })
+                });
+                
+                const data = await response.json();
+                if (!data.authenticated) {
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Ajouter la vérification au chargement de la page
+        if (window.location.pathname.includes('admin.html')) {
+            checkAuth();
+        }
     </script>
 </body>
 </html> 

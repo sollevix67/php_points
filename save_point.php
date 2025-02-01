@@ -1,4 +1,7 @@
 <?php
+require_once 'auth_middleware.php';
+AuthMiddleware::checkAuth();
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
