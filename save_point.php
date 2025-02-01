@@ -1,13 +1,19 @@
 <?php
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 try {
-    // Connexion à la base de données
-    $db = new PDO('mysql:host=192.168.1.61;dbname=livraison_db', 'vinted', 's24EJIlOje');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-    
+    require_once 'db_connect.php';
+
+    // Vérification que toutes les données requises sont présentes
+    $requiredFields = ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude', 'horaires', 'code_point'];
+    foreach ($requiredFields as $field) {
+        if (!isset($_POST[$field]) || empty($_POST[$field])) {
+            throw new Exception("Le champ $field est requis");
+        }
+    }
+
     // Récupérer les données du formulaire
     $isEdit = isset($_POST['isEdit']) && $_POST['isEdit'] === 'true';
     $originalCodePoint = $_POST['original_code_point'] ?? null;
@@ -22,7 +28,16 @@ try {
     $horaires = $_POST['horaires'];
     $code_point = $_POST['code_point'];
 
+    // Connexion à la base de données
+    if (!$conn) {
+        throw new Exception("Erreur de connexion à la base de données");
+    }
+
     if ($isEdit) {
+        if (!$originalCodePoint) {
+            throw new Exception("Code point original manquant pour la modification");
+        }
+
         // Modification d'un point existant
         $sql = "UPDATE points SET 
                 type_point = ?, 
@@ -37,6 +52,10 @@ try {
                 WHERE code_point = ?";
                 
         $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            throw new Exception("Erreur de préparation de la requête : " . $conn->error);
+        }
+
         $stmt->bind_param("sssssddsss", 
             $type_point, 
             $nom_magasin, 
@@ -55,6 +74,10 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 
         $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            throw new Exception("Erreur de préparation de la requête : " . $conn->error);
+        }
+
         $stmt->bind_param("sssssddsss", 
             $type_point, 
             $nom_magasin, 
@@ -68,18 +91,25 @@ try {
         );
     }
 
-    if ($stmt->execute()) {
-        echo json_encode(['success' => true]);
-    } else {
-        throw new Exception("Erreur lors de la sauvegarde : " . $stmt->error);
+    if (!$stmt->execute()) {
+        throw new Exception("Erreur lors de l'exécution de la requête : " . $stmt->error);
     }
 
     $stmt->close();
     $conn->close();
 
+    // Envoyer une réponse JSON valide
+    echo json_encode([
+        'success' => true,
+        'message' => $isEdit ? 'Point modifié avec succès' : 'Point créé avec succès'
+    ]);
+
 } catch (Exception $e) {
-    error_log("Erreur: " . $e->getMessage());
+    // S'assurer que la réponse d'erreur est un JSON valide
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
 }
 ?>
