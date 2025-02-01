@@ -353,5 +353,63 @@
     <script async defer
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&callback=initGoogleMaps">
     </script>
+
+    <!-- Script pour la gestion des points -->
+    <script>
+        // Fonction pour formater les horaires
+        function formatHoraires(horaires) {
+            if (!horaires) return 'Non spécifié';
+            return horaires.split('\n').join('<br>');
+        }
+
+        // Fonction pour le tri des points
+        function sortPoints(points, key = 'nom_magasin', direction = 'asc') {
+            return points.sort((a, b) => {
+                if (direction === 'asc') {
+                    return a[key] > b[key] ? 1 : -1;
+                }
+                return a[key] < b[key] ? 1 : -1;
+            });
+        }
+
+        // Fonction pour filtrer les points actifs/inactifs
+        function filterPoints(points, showActive = true) {
+            return points.filter(point => showActive ? point.actif : !point.actif);
+        }
+
+        // Gestionnaire d'erreurs global
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Erreur:', {
+                message: msg,
+                url: url,
+                line: lineNo,
+                column: columnNo,
+                error: error
+            });
+            return false;
+        };
+
+        // Initialisation des écouteurs d'événements après le chargement du DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            // Écouteur pour le tri des colonnes
+            document.querySelectorAll('.points-table th').forEach(header => {
+                header.addEventListener('click', function() {
+                    const key = this.dataset.sort;
+                    const direction = this.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    this.dataset.direction = direction;
+                    
+                    const sortedPoints = sortPoints(Array.from(points.values()), key, direction);
+                    updatePointsList(sortedPoints);
+                });
+            });
+
+            // Écouteur pour le filtre actif/inactif
+            document.getElementById('filterActive').addEventListener('change', function() {
+                const showActive = this.checked;
+                const filteredPoints = filterPoints(Array.from(points.values()), showActive);
+                updatePointsList(filteredPoints);
+            });
+        });
+    </script>
 </body>
 </html>
