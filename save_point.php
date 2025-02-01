@@ -3,62 +3,80 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
 try {
-    $db = new PDO('mysql:host=192.168.1.61;dbname=livraison_db', 'vinted', 's24EJIlOje');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    require_once 'db_connect.php';
+
+    // Récupérer les données du formulaire
+    $isEdit = isset($_POST['isEdit']) && $_POST['isEdit'] === 'true';
+    $originalCodePoint = $_POST['original_code_point'] ?? null;
     
-    // Debug: afficher les données reçues
-    error_log("Données POST reçues: " . print_r($_POST, true));
-    
-    $data = $_POST;
-    
-    // Vérifier que les champs requis sont présents
-    $required_fields = ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude'];
-    foreach ($required_fields as $field) {
-        if (empty($data[$field])) {
-            throw new Exception("Le champ '$field' est requis");
-        }
+    $type_point = $_POST['type_point'];
+    $nom_magasin = $_POST['nom_magasin'];
+    $adresse = $_POST['adresse'];
+    $code_postal = $_POST['code_postal'];
+    $ville = $_POST['ville'];
+    $latitude = $_POST['latitude'];
+    $longitude = $_POST['longitude'];
+    $horaires = $_POST['horaires'];
+    $code_point = $_POST['code_point'];
+
+    if ($isEdit) {
+        // Modification d'un point existant
+        $sql = "UPDATE points SET 
+                type_point = ?, 
+                nom_magasin = ?, 
+                adresse = ?, 
+                code_postal = ?, 
+                ville = ?, 
+                latitude = ?, 
+                longitude = ?, 
+                horaires = ?, 
+                code_point = ?
+                WHERE code_point = ?";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssssddsss", 
+            $type_point, 
+            $nom_magasin, 
+            $adresse, 
+            $code_postal, 
+            $ville, 
+            $latitude, 
+            $longitude, 
+            $horaires, 
+            $code_point,
+            $originalCodePoint
+        );
+    } else {
+        // Création d'un nouveau point
+        $sql = "INSERT INTO points (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("sssssddsss", 
+            $type_point, 
+            $nom_magasin, 
+            $adresse, 
+            $code_postal, 
+            $ville, 
+            $latitude, 
+            $longitude, 
+            $horaires, 
+            $code_point
+        );
     }
-    
-    // Si horaires n'est pas défini, mettre une chaîne vide
-    $data['horaires'] = isset($data['horaires']) ? $data['horaires'] : '';
-    
-    if (empty($data['code_point'])) {
-        throw new Exception("Le code point est requis");
+
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        throw new Exception("Erreur lors de la sauvegarde : " . $stmt->error);
     }
-    
-    $code_point = $data['code_point'];
-    
-    // Debug: afficher la requête
-    error_log("Requête INSERT avec code_point: $code_point");
-    
-    // Nouveau point
-    $query = $db->prepare('
-        INSERT INTO points_livraison 
-        (code_point, type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ');
-    
-    $params = [
-        $code_point,
-        $data['type_point'],
-        $data['nom_magasin'],
-        $data['adresse'],
-        $data['code_postal'],
-        $data['ville'],
-        $data['latitude'],
-        $data['longitude'],
-        $data['horaires']
-    ];
-    
-    // Debug: afficher les paramètres
-    error_log("Paramètres: " . print_r($params, true));
-    
-    $query->execute($params);
-    
-    echo json_encode(['success' => true, 'message' => 'Point ajouté avec succès', 'code_point' => $code_point]);
+
+    $stmt->close();
+    $conn->close();
+
 } catch (Exception $e) {
     error_log("Erreur: " . $e->getMessage());
-    http_response_code(400);
+    http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 }
 ?>

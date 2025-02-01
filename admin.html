@@ -509,6 +509,12 @@
                 showLoading();
                 const formData = new FormData(this);
                 
+                // Ajouter un champ pour indiquer s'il s'agit d'une modification
+                if (currentPoint) {
+                    formData.append('isEdit', 'true');
+                    formData.append('original_code_point', currentPoint.code_point);
+                }
+                
                 const response = await fetch('save_point.php', {
                     method: 'POST',
                     body: formData
@@ -520,8 +526,12 @@
                     throw new Error(result.error);
                 }
                 
-                showToast('Point sauvegardé avec succès');
+                showToast(currentPoint ? 'Point modifié avec succès' : 'Point créé avec succès');
                 await loadPoints();
+                
+                if (!currentPoint) {
+                    resetForm(); // Réinitialiser le formulaire uniquement pour une nouvelle création
+                }
                 
             } catch (error) {
                 console.error('Erreur:', error);
