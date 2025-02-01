@@ -18,42 +18,118 @@
         let map;
         let marker;
         let panorama;
-        let autocomplete;
         const points = new Map();
         const markers = new Map();
 
-        // Initialisation de la carte
-        function initMap() {
-            const strasbourg = { lat: 48.5734, lng: 7.7521 };
-            const mapOptions = {
-                center: strasbourg,
-                zoom: 12,
-                styles: [
-                    {
-                        featureType: "all",
-                        elementType: "labels.text.fill",
-                        stylers: [{ color: "#ccd6f6" }]
-                    },
-                    {
-                        featureType: "all",
-                        elementType: "labels.text.stroke",
-                        stylers: [{ color: "#0a192f" }]
-                    }
-                ]
-            };
-            map = new google.maps.Map(document.getElementById('map'), mapOptions);
-        }
+        // Attendre que le DOM soit chargé
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialisation de la carte
+            function initMap() {
+                const strasbourg = { lat: 48.5734, lng: 7.7521 };
+                const mapOptions = {
+                    center: strasbourg,
+                    zoom: 12,
+                    styles: [
+                        {
+                            featureType: "all",
+                            elementType: "labels.text.fill",
+                            stylers: [{ color: "#ccd6f6" }]
+                        },
+                        {
+                            featureType: "all",
+                            elementType: "labels.text.stroke",
+                            stylers: [{ color: "#0a192f" }]
+                        }
+                    ]
+                };
+                
+                const mapElement = document.getElementById('map');
+                if (!mapElement) {
+                    console.error("L'élément #map n'a pas été trouvé dans le DOM");
+                    return;
+                }
+                
+                map = new google.maps.Map(mapElement, mapOptions);
+            }
 
-        function initGoogleMaps() {
-            initMap();
-            initAutocomplete();
-            loadAllPoints();
-        }
+            // Fonction pour charger les points
+            async function loadAllPoints() {
+                try {
+                    const response = await fetch('https://www.sollevix.ovh/load_points.php');
+                    const data = await response.json();
+                    
+                    // Vider la Map existante
+                    points.clear();
+                    
+                    // Ajouter les nouveaux points
+                    data.forEach(point => {
+                        points.set(point.code_point, point);
+                    });
+                    
+                    console.log('Points chargés:', points.size);
+                } catch (error) {
+                    console.error('Erreur lors du chargement des points:', error);
+                }
+            }
+
+            // Initialiser la recherche personnalisée
+            const searchInput = document.getElementById('searchAddress');
+            const suggestionsContainer = document.getElementById('suggestions');
+            
+            searchInput.addEventListener('input', debounce(async function() {
+                const value = this.value?.toUpperCase().trim() || '';
+                if (!value) {
+                    suggestionsContainer.style.display = 'none';
+                    return;
+                }
+
+                // Attendre que les points soient chargés si ce n'est pas déjà fait
+                if (points.size === 0) {
+                    await loadAllPoints();
+                }
+
+                console.log('Recherche de:', value);
+                console.log('Points disponibles:', points.size);
+
+                // Si c'est un code point (commence par FR ou 5)
+                if (value.match(/^(FR|5)/)) {
+                    console.log('Recherche de code point');
+                    const matches = Array.from(points.values()).filter(point => 
+                        point.code_point && point.code_point.startsWith(value)
+                    );
+                    
+                    console.log('Points trouvés:', matches);
+                    displayResults(matches);
+                    return;
+                }
+
+                // Pour les autres recherches
+                if (value.length >= 2) {
+                    const matches = Array.from(points.values()).filter(point => 
+                        (point.code_point && point.code_point.includes(value)) ||
+                        (point.nom_magasin && point.nom_magasin.toUpperCase().includes(value)) ||
+                        (point.adresse && point.adresse.toUpperCase().includes(value)) ||
+                        (point.code_postal && point.code_postal.includes(value)) ||
+                        (point.ville && point.ville.toUpperCase().includes(value))
+                    );
+
+                    console.log('Points trouvés:', matches);
+                    displayResults(matches);
+                } else {
+                    suggestionsContainer.style.display = 'none';
+                }
+            }, 300));
+
+            window.initGoogleMaps = function() {
+                initMap();
+                loadAllPoints();
+            };
+        });
     </script>
     
     <!-- Google Maps avec callback -->
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=places,geometry&callback=initGoogleMaps">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=geometry&callback=initGoogleMaps">
     </script>
 
     <style>
@@ -482,6 +558,29 @@
     </button>
 
     <script>
+        // Initialisation de la carte
+        function initMap() {
+            const strasbourg = { lat: 48.5734, lng: 7.7521 };
+            const mapOptions = {
+                center: strasbourg,
+                zoom: 12,
+                styles: [
+                    {
+                        featureType: "all",
+                        elementType: "labels.text.fill",
+                        stylers: [{ color: "#ccd6f6" }]
+                    },
+                    {
+                        featureType: "all",
+                        elementType: "labels.text.stroke",
+                        stylers: [{ color: "#0a192f" }]
+                    }
+                    // Ajoutez d'autres styles de carte si nécessaire
+                ]
+            };
+            map = new google.maps.Map(document.getElementById('map'), mapOptions);
+        }
+
         // Ajouter une mise en cache des points
         const pointsCache = new Map();
 
@@ -503,84 +602,6 @@
                     });
                     return data;
                 });
-        }
-
-        // Initialisation de l'autocomplétion
-        function initAutocomplete() {
-            const input = document.getElementById('searchAddress');
-            const suggestionsContainer = document.getElementById('suggestions');
-            
-            // Google Maps Autocomplete
-            autocomplete = new google.maps.places.Autocomplete(input, {
-                componentRestrictions: { country: 'fr' },
-                fields: ['formatted_address', 'geometry']
-            });
-
-            // Événement de sélection Google Maps
-            autocomplete.addListener('place_changed', function() {
-                const place = autocomplete.getPlace();
-                if (place.geometry) {
-                    const position = {
-                        lat: place.geometry.location.lat(),
-                        lng: place.geometry.location.lng()
-                    };
-
-                    map.setCenter(position);
-                    map.setZoom(16);
-
-                    if (marker) marker.setMap(null);
-                    marker = new google.maps.Marker({
-                        position: position,
-                        map: map,
-                        animation: google.maps.Animation.DROP
-                    });
-
-                    // Rechercher les points proches
-                    findNearbyPoints(position);
-                }
-            });
-
-            // Notre autocomplétion personnalisée
-            input.addEventListener('input', debounce(function() {
-                const value = this.value.toUpperCase().trim(); // Convertir en majuscules
-                console.log('Recherche de:', value);
-                console.log('Points disponibles:', points.size);
-
-                // Si c'est un code point (commence par FR ou 5)
-                if (value.match(/^(FR|5)/)) {
-                    console.log('Recherche de code point');
-                    const matches = Array.from(points.values()).filter(point => 
-                        point.code_point && point.code_point.startsWith(value)
-                    );
-                    
-                    console.log('Points trouvés:', matches);
-                    displayResults(matches);
-                    return;
-                }
-
-                // Pour les autres recherches
-                if (value.length >= 2) {
-                    const matches = Array.from(points.values()).filter(point => 
-                        (point.code_point && point.code_point.includes(value)) ||
-                        (point.nom_magasin && point.nom_magasin.toUpperCase().includes(value)) ||
-                        (point.adresse && point.adresse.toUpperCase().includes(value)) ||
-                        (point.code_postal && point.code_postal.includes(value)) ||
-                        (point.ville && point.ville.toUpperCase().includes(value))
-                    );
-
-                    console.log('Points trouvés:', matches);
-                    displayResults(matches);
-                } else {
-                    suggestionsContainer.style.display = 'none';
-                }
-            }, 300));
-
-            // Fermer les suggestions quand on clique ailleurs
-            document.addEventListener('click', function(e) {
-                if (!suggestionsContainer.contains(e.target) && e.target !== input) {
-                    suggestionsContainer.style.display = 'none';
-                }
-            });
         }
 
         // Nouvelle fonction pour afficher les résultats
