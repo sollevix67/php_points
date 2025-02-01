@@ -1,0 +1,17 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "hyperion.sollevix.ovh",
+            "port": 3306,
+            "driver": "MariaDB",
+            "name": "Hyperion",
+            "database": "test",
+            "username": "test_user"
+        }
+    ]
+}

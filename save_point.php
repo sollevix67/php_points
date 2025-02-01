@@ -2,6 +2,8 @@
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
+define('REQUIRED_FIELDS', ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude']);
+
 try {
     $db = new PDO('mysql:host=192.168.1.61;dbname=livraison_db', 'vinted', 's24EJIlOje');
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -12,7 +14,6 @@ try {
     $data = $_POST;
     
     // Vérifier que les champs requis sont présents
-    $required_fields = ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude'];
     foreach ($required_fields as $field) {
         if (empty($data[$field])) {
             throw new Exception("Le champ '$field' est requis");
@@ -53,9 +54,15 @@ try {
     // Debug: afficher les paramètres
     error_log("Paramètres: " . print_r($params, true));
     
-    $query->execute($params);
-    
-    echo json_encode(['success' => true, 'message' => 'Point ajouté avec succès', 'code_point' => $code_point]);
+    $db->beginTransaction();
+    try {
+        $query->execute($params);
+        $db->commit();
+        echo json_encode(['success' => true, 'message' => 'Point ajouté avec succès', 'code_point' => $code_point]);
+    } catch (Exception $e) {
+        $db->rollBack();
+        throw $e;
+    }
 } catch (Exception $e) {
     error_log("Erreur: " . $e->getMessage());
     http_response_code(400);
