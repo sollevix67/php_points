@@ -4,8 +4,38 @@ header('Access-Control-Allow-Origin: *');
 
 define('REQUIRED_FIELDS', ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude']);
 
+// Validation des entrées utilisateur
+function validateInput($data) {
+    // Sanitizer les entrées
+    $data = array_map('trim', $data);
+    $data = array_map('htmlspecialchars', $data);
+    
+    foreach (REQUIRED_FIELDS as $field) {
+        if (empty($data[$field])) {
+            throw new Exception("Le champ '$field' est requis");
+        }
+    }
+    
+    // Validation plus stricte des coordonnées GPS
+    if (!is_numeric($data['latitude']) || $data['latitude'] < -90 || $data['latitude'] > 90) {
+        throw new Exception("Latitude invalide");
+    }
+    if (!is_numeric($data['longitude']) || $data['longitude'] < -180 || $data['longitude'] > 180) {
+        throw new Exception("Longitude invalide");
+    }
+    
+    return $data;
+}
+
 try {
-    $db = new PDO('mysql:host=192.168.1.61;dbname=livraison_db', 'vinted', 's24EJIlOje');
+    // Remplacer la connexion en dur par config.php
+    require_once 'config.php';
+    $config = require 'config.php';
+    $db = new PDO(
+        "mysql:host={$config['db']['host']};dbname={$config['db']['name']}", 
+        $config['db']['user'], 
+        $config['db']['pass']
+    );
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     // Debug: afficher les données reçues
@@ -13,12 +43,7 @@ try {
     
     $data = $_POST;
     
-    // Vérifier que les champs requis sont présents
-    foreach ($required_fields as $field) {
-        if (empty($data[$field])) {
-            throw new Exception("Le champ '$field' est requis");
-        }
-    }
+    validateInput($data);
     
     // Si horaires n'est pas défini, mettre une chaîne vide
     $data['horaires'] = isset($data['horaires']) ? $data['horaires'] : '';
@@ -66,6 +91,10 @@ try {
 } catch (Exception $e) {
     error_log("Erreur: " . $e->getMessage());
     http_response_code(400);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode([
+        'error' => true,
+        'message' => 'Une erreur est survenue',
+        'debug' => DEBUG ? $e->getMessage() : null
+    ]);
 }
 ?>

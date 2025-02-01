@@ -1,9 +1,10 @@
 <?php
+// Utilisation de variables d'environnement pour sécuriser les informations de connexion
 return [
     'db' => [
-        'host' => '192.168.1.61',
-        'name' => 'livraison_db',
-        'user' => 'vinted',
-        'pass' => 's24EJIlOje'
+        'host' => getenv('DB_HOST'),
+        'name' => getenv('DB_NAME'),
+        'user' => getenv('DB_USER'),
+        'pass' => getenv('DB_PASS')
     ]
 ]; 
