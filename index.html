@@ -76,18 +76,8 @@
             const searchInput = document.getElementById('searchAddress');
             const suggestionsContainer = document.getElementById('suggestions');
             
-            searchInput.addEventListener('input', debounce(async function() {
-                const value = this.value?.toUpperCase().trim() || '';
-                if (!value) {
-                    suggestionsContainer.style.display = 'none';
-                    return;
-                }
-
-                // Attendre que les points soient chargés si ce n'est pas déjà fait
-                if (points.size === 0) {
-                    await loadAllPoints();
-                }
-
+            searchInput.addEventListener('input', debounce(function() {
+                const value = this.value.toUpperCase().trim();
                 console.log('Recherche de:', value);
                 console.log('Points disponibles:', points.size);
 
