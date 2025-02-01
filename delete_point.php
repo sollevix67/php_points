@@ -84,45 +84,33 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
     
-    $data = array_map('trim', $_POST);
+    // Vérifier si le code_point est fourni
+    if (!isset($_GET['code_point'])) {
+        throw new ValidationException("Code point non fourni");
+    }
     
-    // Validation des données
-    PointLivraisonValidator::validate($data);
+    $code_point = trim($_GET['code_point']);
     
-    // Vérification du code_point existant
+    // Vérifier si le point existe avant la suppression
     $checkQuery = $db->prepare('SELECT 1 FROM points_livraison WHERE code_point = ?');
-    $checkQuery->execute([$data['code_point']]);
-    if ($checkQuery->fetch()) {
-        throw new ValidationException("Ce code point existe déjà");
+    $checkQuery->execute([$code_point]);
+    if (!$checkQuery->fetch()) {
+        throw new ValidationException("Point non trouvé");
     }
     
     $db->beginTransaction();
     
     try {
-        $query = $db->prepare('
-            INSERT INTO points_livraison 
-            (code_point, type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires) 
-            VALUES (:code_point, :type_point, :nom_magasin, :adresse, :code_postal, :ville, :latitude, :longitude, :horaires)
-        ');
-        
-        $query->execute([
-            ':code_point' => $data['code_point'],
-            ':type_point' => $data['type_point'],
-            ':nom_magasin' => $data['nom_magasin'],
-            ':adresse' => $data['adresse'],
-            ':code_postal' => $data['code_postal'],
-            ':ville' => $data['ville'],
-            ':latitude' => $data['latitude'],
-            ':longitude' => $data['longitude'],
-            ':horaires' => $data['horaires'] ?? ''
-        ]);
+        $query = $db->prepare('DELETE FROM points_livraison WHERE code_point = ?');
+        $query->execute([$code_point]);
         
         $db->commit();
         
+        Logger::log('info', 'Point supprimé', ['code_point' => $code_point]);
+        
         echo json_encode([
             'success' => true, 
-            'message' => 'Point ajouté avec succès',
-            'code_point' => $data['code_point']
+            'message' => 'Point supprimé avec succès'
         ]);
         
     } catch (Exception $e) {
@@ -131,11 +119,17 @@ try {
     }
     
 } catch (ValidationException $e) {
-    error_log("Erreur de validation: " . $e->getMessage());
+    Logger::log('error', 'Erreur de validation lors de la suppression', [
+        'message' => $e->getMessage(),
+        'code_point' => $_GET['code_point'] ?? null
+    ]);
     http_response_code(400);
     echo json_encode(['error' => $e->getMessage()]);
 } catch (Exception $e) {
-    error_log("Erreur: " . $e->getMessage());
+    Logger::log('error', 'Erreur lors de la suppression', [
+        'message' => $e->getMessage(),
+        'code_point' => $_GET['code_point'] ?? null
+    ]);
     http_response_code(500);
     echo json_encode(['error' => 'Une erreur est survenue']);
 }
