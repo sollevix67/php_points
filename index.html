@@ -779,6 +779,22 @@
                 }
             });
         }
+
+        function validateForm() {
+            // Ajouter une validation JavaScript plus poussée
+            const codePostal = document.getElementById('code_postal').value;
+            if (!/^\d{5}$/.test(codePostal)) {
+                showToast('Code postal invalide', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function cleanup() {
+            // Nettoyer les écouteurs d'événements lors de la destruction
+            document.removeEventListener('click', handleOutsideClick);
+            window.removeEventListener('beforeunload', cleanup);
+        }
     </script>
 </body>
 </html>
