@@ -3,8 +3,11 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
 try {
-    require_once 'db_connect.php';
-
+    // Connexion à la base de données
+    $db = new PDO('mysql:host=192.168.1.61;dbname=livraison_db', 'vinted', 's24EJIlOje');
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    
     // Récupérer les données du formulaire
     $isEdit = isset($_POST['isEdit']) && $_POST['isEdit'] === 'true';
     $originalCodePoint = $_POST['original_code_point'] ?? null;
