@@ -39,7 +39,7 @@ try {
         }
 
         // Modification d'un point existant
-        $sql = "UPDATE points SET 
+        $sql = "UPDATE points_livraison SET 
                 type_point = ?, 
                 nom_magasin = ?, 
                 adresse = ?, 
@@ -70,7 +70,7 @@ try {
         );
     } else {
         // Création d'un nouveau point
-        $sql = "INSERT INTO points (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
+        $sql = "INSERT INTO points_livraison (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 
         $stmt = $conn->prepare($sql);
