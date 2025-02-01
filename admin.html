@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.all.min.js"></script>
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=places,geometry&callback=initAutocomplete">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCQeM0ykCTm-KstjZbFt9xfbWix2ngiNs&libraries=places,geometry">
     </script>
     <style>
         :root {
@@ -623,6 +623,12 @@
             detailsSection.style.display = 'block';
         }
 
+        // Attendre que Google Maps soit chargé
+        function initMap() {
+            // Initialiser l'autocomplétion une fois que Google Maps est chargé
+            initAutocomplete();
+        }
+
         function initAutocomplete() {
             const input = document.getElementById('adresse');
             const options = {
@@ -679,7 +685,17 @@
 
         // Charger les points au démarrage
         loadPoints();
-        initAutocomplete();
+        
+        // Attendre que la page soit complètement chargée
+        window.addEventListener('load', function() {
+            // Vérifier si Google Maps est chargé
+            if (typeof google !== 'undefined') {
+                initMap();
+            } else {
+                // Si Google Maps n'est pas encore chargé, attendre qu'il le soit
+                window.initMap = initMap;
+            }
+        });
     </script>
 </body>
 </html> 
