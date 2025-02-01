@@ -27,7 +27,7 @@ try {
         PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$config['db']['charset']}"
     ]);
 
-    // Requête pour récupérer tous les points
+    // Requête pour récupérer tous les points avec le champ actif
     $query = $db->query('
         SELECT 
             code_point,
@@ -38,7 +38,10 @@ try {
             ville,
             latitude,
             longitude,
-            horaires
+            horaires,
+            actif,
+            date_creation,
+            date_modification
         FROM points_livraison 
         ORDER BY nom_magasin ASC
     ');
@@ -58,6 +61,17 @@ try {
         $point['nom_magasin'] = htmlspecialchars($point['nom_magasin']);
         $point['adresse'] = htmlspecialchars($point['adresse']);
         $point['ville'] = htmlspecialchars($point['ville']);
+
+        // Convertir actif en booléen
+        $point['actif'] = (bool)$point['actif'];
+
+        // Formater les dates
+        if (isset($point['date_creation'])) {
+            $point['date_creation'] = date('Y-m-d H:i:s', strtotime($point['date_creation']));
+        }
+        if (isset($point['date_modification'])) {
+            $point['date_modification'] = date('Y-m-d H:i:s', strtotime($point['date_modification']));
+        }
     }
 
     // Envoyer la réponse
