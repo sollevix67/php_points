@@ -4,6 +4,22 @@ header('Access-Control-Allow-Origin: *');
 
 require_once 'config.php';
 
+/**
+ * Classe de gestion des points de livraison
+ * @package LiveTrack
+ */
+class PointLivraison {
+    /**
+     * Crée un nouveau point de livraison
+     * @param array $data Les données du point
+     * @return array Résultat de l'opération
+     * @throws ValidationException Si les données sont invalides
+     */
+    public function create($data) {
+        // ... implémentation
+    }
+}
+
 class PointLivraisonValidator {
     private const REQUIRED_FIELDS = ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude'];
     
@@ -33,7 +49,32 @@ class PointLivraisonValidator {
             throw new ValidationException("Longitude invalide");
         }
         
+        // Ajouter validation du format des horaires
+        if (!empty($data['horaires'])) {
+            $horaires = explode("\n", $data['horaires']);
+            foreach ($horaires as $horaire) {
+                if (!preg_match('/^[A-Za-z]+:\s+\d{1,2}h\d{2}\s+-\s+\d{1,2}h\d{2}$/', trim($horaire))) {
+                    throw new ValidationException("Format d'horaire invalide");
+                }
+            }
+        }
+        
         return true;
+    }
+}
+
+// Ajouter une classe Logger
+class Logger {
+    public static function log($type, $message, $context = []) {
+        $logFile = __DIR__ . '/logs/' . date('Y-m-d') . '.log';
+        $logEntry = sprintf(
+            "[%s] %s: %s %s\n",
+            date('Y-m-d H:i:s'),
+            strtoupper($type),
+            $message,
+            !empty($context) ? json_encode($context) : ''
+        );
+        file_put_contents($logFile, $logEntry, FILE_APPEND);
     }
 }
 
