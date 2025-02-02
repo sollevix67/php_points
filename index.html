@@ -14,16 +14,13 @@
     <!-- Initialisation de Google Maps -->
     <script>
         let map;
-        let marker;
-        let panorama;
-        let autocomplete;
-        const points = new Map();
-        const markers = new Map();
+        let markers = [];
+        let currentInfoWindow = null;
+        const lockerIcon = 'images/locker-icon.png';
+        const storeIcon = 'images/store-icon.png';
 
         function initGoogleMaps() {
             initMap();
-            initAutocomplete();
-            loadAllPoints();
         }
     </script>
     
@@ -458,27 +455,44 @@
     </button>
 
     <script>
-        // Initialisation de la carte
+        let map;
+        let markers = [];
+        let currentInfoWindow = null;
+        const lockerIcon = 'images/locker-icon.png';
+        const storeIcon = 'images/store-icon.png';
+
+        // Fonction d'initialisation de la carte
+        function initGoogleMaps() {
+            initMap();
+        }
+
+        // Fonction d'initialisation de la carte
         function initMap() {
-            const strasbourg = { lat: 48.5734, lng: 7.7521 };
+            // Centre par défaut sur la France
+            const center = { lat: 46.603354, lng: 1.888334 };
+            
+            // Options de la carte
             const mapOptions = {
-                center: strasbourg,
-                zoom: 12,
+                zoom: 6,
+                center: center,
+                mapTypeControl: true,
+                streetViewControl: false,
+                fullscreenControl: true,
+                zoomControl: true,
                 styles: [
                     {
-                        featureType: "all",
-                        elementType: "labels.text.fill",
-                        stylers: [{ color: "#ccd6f6" }]
-                    },
-                    {
-                        featureType: "all",
-                        elementType: "labels.text.stroke",
-                        stylers: [{ color: "#0a192f" }]
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
                     }
-                    // Ajoutez d'autres styles de carte si nécessaire
                 ]
             };
+
+            // Créer la carte
             map = new google.maps.Map(document.getElementById('map'), mapOptions);
+
+            // Charger les points une fois la carte initialisée
+            loadPoints();
         }
 
         // Chargement des points
