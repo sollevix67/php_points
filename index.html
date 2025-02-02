@@ -508,6 +508,10 @@
                     throw new Error('Format de données invalide');
                 }
 
+                // Supprimer les marqueurs existants
+                markers.forEach(marker => marker.setMap(null));
+                markers = [];
+
                 // Créer les marqueurs pour chaque point
                 data.forEach(point => {
                     const position = {
