@@ -482,34 +482,67 @@
         }
 
         // Chargement des points
-        function loadAllPoints() {
-            fetch('https://www.sollevix.ovh/load_points.php')
-                .then(response => response.json())
-                .then(data => {
-                    // Debug
-                    console.log('Points reçus du serveur:', data);
+        async function loadPoints() {
+            try {
+                const response = await fetch('load_points.php');
+                const data = await response.json();
+                
+                if (!Array.isArray(data)) {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    throw new Error('Format de données invalide');
+                }
 
-                    // Vider les points existants
-                    points.clear();
-                    markers.forEach(marker => marker.setMap(null));
-                    markers.clear();
+                // Créer les marqueurs pour chaque point
+                data.forEach(point => {
+                    const position = {
+                        lat: parseFloat(point.latitude),
+                        lng: parseFloat(point.longitude)
+                    };
 
-                    // Charger les nouveaux points
-                    data.forEach(point => {
-                        // S'assurer que le point a un code_point
-                        if (point && point.code_point) {
-                            // Convertir le code_point en majuscules pour la cohérence
-                            point.code_point = point.code_point.toUpperCase();
-                            points.set(point.code_point, point);
-                            createCustomMarker(point);
-                        }
+                    // Créer le marqueur
+                    const marker = new google.maps.Marker({
+                        position: position,
+                        map: map,
+                        title: point.nom_magasin,
+                        icon: point.type_point === 'Locker' ? lockerIcon : storeIcon
                     });
 
-                    // Debug
-                    console.log('Points chargés:', points.size);
-                    console.log('Points disponibles:', Array.from(points.values()));
-                })
-                .catch(error => console.error('Erreur:', error));
+                    // Ajouter les informations au marqueur
+                    const content = `
+                        <div class="info-window">
+                            <h3>${point.nom_magasin}</h3>
+                            <p><strong>${point.type_point}</strong></p>
+                            <p>${point.adresse}</p>
+                            <p>${point.code_postal} ${point.ville}</p>
+                            <p><strong>Horaires :</strong><br>${point.horaires}</p>
+                        </div>
+                    `;
+
+                    // Créer la fenêtre d'info
+                    const infowindow = new google.maps.InfoWindow({
+                        content: content
+                    });
+
+                    // Ajouter l'événement click
+                    marker.addListener('click', () => {
+                        if (currentInfoWindow) {
+                            currentInfoWindow.close();
+                        }
+                        infowindow.open(map, marker);
+                        currentInfoWindow = infowindow;
+                    });
+
+                    // Ajouter le marqueur à la liste
+                    markers.push(marker);
+                });
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                // Afficher l'erreur à l'utilisateur
+                alert('Erreur lors du chargement des points : ' + error.message);
+            }
         }
 
         // Initialisation de l'autocomplétion

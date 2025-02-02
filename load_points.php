@@ -42,10 +42,7 @@ try {
     Logger::log("Points chargés avec succès. Nombre de points : " . count($points), 'info');
 
     // Envoyer la réponse
-    echo json_encode([
-        'success' => true,
-        'data' => $points
-    ]);
+    echo json_encode($points);
 
 } catch (Exception $e) {
     // Log de l'erreur
