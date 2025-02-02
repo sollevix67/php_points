@@ -1,10 +1,11 @@
 <?php
 header('Content-Type: application/json');
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 
 try {
-    require_once 'db_connect.php';
+    // Inclure le fichier de connexion
+    require_once __DIR__ . '/db_connect.php';
 
     // Vérification que toutes les données requises sont présentes
     $requiredFields = ['type_point', 'nom_magasin', 'adresse', 'code_postal', 'ville', 'latitude', 'longitude', 'horaires', 'code_point'];
@@ -14,32 +15,23 @@ try {
         }
     }
 
-    // Récupérer les données du formulaire
-    $isEdit = isset($_POST['isEdit']) && $_POST['isEdit'] === 'true';
-    $originalCodePoint = $_POST['original_code_point'] ?? null;
-    
-    $type_point = $_POST['type_point'];
-    $nom_magasin = $_POST['nom_magasin'];
-    $adresse = $_POST['adresse'];
-    $code_postal = $_POST['code_postal'];
-    $ville = $_POST['ville'];
-    $latitude = $_POST['latitude'];
-    $longitude = $_POST['longitude'];
-    $horaires = $_POST['horaires'];
-    $code_point = $_POST['code_point'];
-
-    // Connexion à la base de données
-    if (!$conn) {
-        throw new Exception("Erreur de connexion à la base de données");
+    // Nettoyer et valider les données
+    $data = [];
+    foreach ($requiredFields as $field) {
+        $data[$field] = htmlspecialchars(trim($_POST[$field]));
     }
 
+    // Récupérer les données supplémentaires
+    $isEdit = isset($_POST['isEdit']) && $_POST['isEdit'] === 'true';
+    $originalCodePoint = $_POST['original_code_point'] ?? null;
+
+    // Préparer la requête SQL appropriée
     if ($isEdit) {
         if (!$originalCodePoint) {
             throw new Exception("Code point original manquant pour la modification");
         }
 
-        // Modification d'un point existant
-        $sql = "UPDATE points_livraison SET 
+        $sql = "UPDATE points SET 
                 type_point = ?, 
                 nom_magasin = ?, 
                 adresse = ?, 
@@ -50,66 +42,82 @@ try {
                 horaires = ?, 
                 code_point = ?
                 WHERE code_point = ?";
-                
+
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             throw new Exception("Erreur de préparation de la requête : " . $conn->error);
         }
 
         $stmt->bind_param("sssssddsss", 
-            $type_point, 
-            $nom_magasin, 
-            $adresse, 
-            $code_postal, 
-            $ville, 
-            $latitude, 
-            $longitude, 
-            $horaires, 
-            $code_point,
+            $data['type_point'],
+            $data['nom_magasin'],
+            $data['adresse'],
+            $data['code_postal'],
+            $data['ville'],
+            $data['latitude'],
+            $data['longitude'],
+            $data['horaires'],
+            $data['code_point'],
             $originalCodePoint
         );
     } else {
-        // Création d'un nouveau point
-        $sql = "INSERT INTO points_livraison (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
+        // Vérifier si le code_point existe déjà
+        $checkStmt = $conn->prepare("SELECT code_point FROM points WHERE code_point = ?");
+        $checkStmt->bind_param("s", $data['code_point']);
+        $checkStmt->execute();
+        $result = $checkStmt->get_result();
+        if ($result->num_rows > 0) {
+            throw new Exception("Un point avec ce code existe déjà");
+        }
+        $checkStmt->close();
+
+        $sql = "INSERT INTO points (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                
+
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             throw new Exception("Erreur de préparation de la requête : " . $conn->error);
         }
 
         $stmt->bind_param("sssssddsss", 
-            $type_point, 
-            $nom_magasin, 
-            $adresse, 
-            $code_postal, 
-            $ville, 
-            $latitude, 
-            $longitude, 
-            $horaires, 
-            $code_point
+            $data['type_point'],
+            $data['nom_magasin'],
+            $data['adresse'],
+            $data['code_postal'],
+            $data['ville'],
+            $data['latitude'],
+            $data['longitude'],
+            $data['horaires'],
+            $data['code_point']
         );
     }
 
+    // Exécuter la requête
     if (!$stmt->execute()) {
         throw new Exception("Erreur lors de l'exécution de la requête : " . $stmt->error);
     }
 
+    // Fermer la requête
     $stmt->close();
-    $conn->close();
 
-    // Envoyer une réponse JSON valide
+    // Envoyer une réponse de succès
     echo json_encode([
         'success' => true,
-        'message' => $isEdit ? 'Point modifié avec succès' : 'Point créé avec succès'
+        'message' => $isEdit ? 'Point modifié avec succès' : 'Point créé avec succès',
+        'code_point' => $data['code_point']
     ]);
 
 } catch (Exception $e) {
-    // S'assurer que la réponse d'erreur est un JSON valide
+    // Log l'erreur
+    error_log("Erreur save_point : " . $e->getMessage() . " [" . date('Y-m-d H:i:s') . "]", 3, __DIR__ . '/logs/app_errors.log');
+    
+    // Envoyer une réponse d'erreur
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
     ]);
+} finally {
+    // La connexion sera fermée automatiquement grâce au register_shutdown_function dans db_connect.php
 }
 ?>

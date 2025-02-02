@@ -1,62 +1,41 @@
 <?php
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
 
 try {
-    // Connexion à la base de données
-    $db = new PDO('mysql:host=192.168.1.61;dbname=livraison_db', 'vinted', 's24EJIlOje');
-    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
-    $search = isset($_GET['search']) ? trim($_GET['search']) : '';
-    
-    if (!empty($search)) {
-        // Recherche avec un terme spécifique
-        $searchTerm = "%{$search}%";
-        
-        $query = $db->prepare("
-            SELECT * FROM points_livraison 
-            WHERE code_point LIKE :search 
-            OR LOWER(nom_magasin) LIKE LOWER(:search)
-            OR LOWER(adresse) LIKE LOWER(:search)
-            OR code_postal LIKE :search
-            OR LOWER(ville) LIKE LOWER(:search)
-            ORDER BY nom_magasin ASC
-        ");
-        
-        $query->execute([':search' => $searchTerm]);
-    } else {
-        // Récupérer tous les points
-        $query = $db->query("SELECT * FROM points_livraison ORDER BY nom_magasin ASC");
+    // Inclure le fichier de connexion
+    require_once __DIR__ . '/db_connect.php';
+
+    // Préparer et exécuter la requête
+    $sql = "SELECT * FROM points ORDER BY nom_magasin ASC";
+    $result = $conn->query($sql);
+
+    if (!$result) {
+        throw new Exception("Erreur lors de la récupération des points");
     }
-    
-    $points = $query->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Formater les horaires pour chaque point
-    foreach ($points as &$point) {
-        if (isset($point['horaires'])) {
-            $point['horaires'] = trim($point['horaires']);
-        } else {
-            $point['horaires'] = '';
-        }
+
+    // Récupérer tous les points
+    $points = [];
+    while ($row = $result->fetch_assoc()) {
+        $points[] = $row;
     }
-    
+
+    // Fermer le résultat
+    $result->close();
+
     // Envoyer la réponse
     echo json_encode($points);
-    
-} catch (PDOException $e) {
-    // Log de l'erreur
-    error_log("Erreur PDO: " . $e->getMessage());
+
+} catch (Exception $e) {
+    // Log l'erreur
+    error_log("Erreur get_points : " . $e->getMessage() . " [" . date('Y-m-d H:i:s') . "]", 3, __DIR__ . '/logs/app_errors.log');
     
     // Envoyer une réponse d'erreur
     http_response_code(500);
-    echo json_encode(['error' => 'Erreur de base de données: ' . $e->getMessage()]);
-    
-} catch (Exception $e) {
-    // Log de l'erreur
-    error_log("Erreur: " . $e->getMessage());
-    
-    // Envoyer une réponse d'erreur
-    http_response_code(400);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Erreur lors de la récupération des points'
+    ]);
 }
 ?> 
