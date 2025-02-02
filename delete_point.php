@@ -3,6 +3,9 @@ header('Content-Type: application/json');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+// Inclure le logger
+require_once __DIR__ . '/logger.php';
+
 try {
     // Inclure le fichier de connexion
     require_once __DIR__ . '/db_connect.php';
@@ -15,7 +18,7 @@ try {
     $code_point = htmlspecialchars(trim($_GET['code_point']));
 
     // Vérifier si le point existe
-    $checkStmt = $conn->prepare("SELECT code_point FROM points WHERE code_point = ?");
+    $checkStmt = $conn->prepare("SELECT code_point FROM points_livraison WHERE code_point = ?");
     $checkStmt->bind_param("s", $code_point);
     $checkStmt->execute();
     $result = $checkStmt->get_result();
@@ -27,7 +30,7 @@ try {
     $checkStmt->close();
 
     // Préparer et exécuter la suppression
-    $stmt = $conn->prepare("DELETE FROM points WHERE code_point = ?");
+    $stmt = $conn->prepare("DELETE FROM points_livraison WHERE code_point = ?");
     if (!$stmt) {
         throw new Exception("Erreur de préparation de la requête");
     }
@@ -48,8 +51,8 @@ try {
     ]);
 
 } catch (Exception $e) {
-    // Log l'erreur
-    error_log("Erreur delete_point : " . $e->getMessage() . " [" . date('Y-m-d H:i:s') . "]", 3, __DIR__ . '/logs/app_errors.log');
+    // Utiliser la nouvelle classe Logger
+    Logger::log("Erreur delete_point : " . $e->getMessage());
     
     // Envoyer une réponse d'erreur
     http_response_code(500);

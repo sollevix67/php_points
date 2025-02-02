@@ -3,6 +3,9 @@ header('Content-Type: application/json');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+// Inclure le logger
+require_once __DIR__ . '/logger.php';
+
 try {
     // Inclure le fichier de connexion
     require_once __DIR__ . '/db_connect.php';
@@ -31,7 +34,7 @@ try {
             throw new Exception("Code point original manquant pour la modification");
         }
 
-        $sql = "UPDATE points SET 
+        $sql = "UPDATE points_livraison SET 
                 type_point = ?, 
                 nom_magasin = ?, 
                 adresse = ?, 
@@ -62,7 +65,7 @@ try {
         );
     } else {
         // Vérifier si le code_point existe déjà
-        $checkStmt = $conn->prepare("SELECT code_point FROM points WHERE code_point = ?");
+        $checkStmt = $conn->prepare("SELECT code_point FROM points_livraison WHERE code_point = ?");
         $checkStmt->bind_param("s", $data['code_point']);
         $checkStmt->execute();
         $result = $checkStmt->get_result();
@@ -71,7 +74,7 @@ try {
         }
         $checkStmt->close();
 
-        $sql = "INSERT INTO points (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
+        $sql = "INSERT INTO points_livraison (type_point, nom_magasin, adresse, code_postal, ville, latitude, longitude, horaires, code_point) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $conn->prepare($sql);
@@ -108,8 +111,8 @@ try {
     ]);
 
 } catch (Exception $e) {
-    // Log l'erreur
-    error_log("Erreur save_point : " . $e->getMessage() . " [" . date('Y-m-d H:i:s') . "]", 3, __DIR__ . '/logs/app_errors.log');
+    // Utiliser la nouvelle classe Logger
+    Logger::log("Erreur save_point : " . $e->getMessage());
     
     // Envoyer une réponse d'erreur
     http_response_code(500);
