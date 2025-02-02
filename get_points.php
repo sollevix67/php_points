@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');  // Ajout du CORS si nécessaire
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
@@ -8,7 +9,7 @@ try {
     require_once __DIR__ . '/db_connect.php';
 
     // Préparer et exécuter la requête
-    $sql = "SELECT * FROM points ORDER BY nom_magasin ASC";
+    $sql = "SELECT * FROM points_livraison ORDER BY nom_magasin ASC";  // Correction du nom de la table
     $result = $conn->query($sql);
 
     if (!$result) {
@@ -18,14 +19,27 @@ try {
     // Récupérer tous les points
     $points = [];
     while ($row = $result->fetch_assoc()) {
-        $points[] = $row;
+        $points[] = [
+            'type_point' => $row['type_point'],
+            'nom_magasin' => $row['nom_magasin'],
+            'adresse' => $row['adresse'],
+            'code_postal' => $row['code_postal'],
+            'ville' => $row['ville'],
+            'latitude' => $row['latitude'],
+            'longitude' => $row['longitude'],
+            'horaires' => $row['horaires'],
+            'code_point' => $row['code_point']
+        ];
     }
 
     // Fermer le résultat
     $result->close();
 
-    // Envoyer la réponse
-    echo json_encode($points);
+    // Envoyer la réponse avec success
+    echo json_encode([
+        'success' => true,
+        'data' => $points
+    ]);
 
 } catch (Exception $e) {
     // Log l'erreur
